@@ -1,40 +1,77 @@
+import {NExclude, NotSubType, Primitive} from 'core';
+import {ZodTuple, TypeOf, ZodLiteral} from 'zod';
+
+import {
+  ARRAY_CLAUSES,
+  COMMON_CLAUSES,
+  EXIST_CLAUSES,
+  LOGICAL_CLAUSES,
+  NUMBER_CLAUSES,
+  STRING_CLAUSES,
+  TYPE_ALIASES,
+} from '../constants/strings';
+
+type inferUnion<T extends ZodTuple> = TypeOf<T>[number];
+
+// type inferKey<T extends ZodTuple, K extends inferUnion<T>> = K;
+
+export type inferClause<
+  T extends ZodTuple | ZodLiteral<any>,
+  K extends T extends ZodTuple ? inferUnion<T> : TypeOf<T>,
+  R = any,
+> = {
+  [key in K]: R;
+};
+
 // import { TupleOf } from './arrays';
-export type Equals = {
-  $eq: any;
-};
-export type NotEquals = {
-  $ne: any;
-};
-export type ObjectIn<T = any> = {
-  $in: T[];
-};
-export type ObjectNotIn<T = any> = {
-  $nin: T[];
-};
-export type GreaterThan = {
-  $gt: number;
-};
-export type GreaterThanOrEquals = {
-  $gte: number;
-};
-export type LessThan = {
-  $lt: number;
-};
-export type LessThanOrEquals = {
-  $lte: number;
-};
-export type Modulo = {
-  $mod: number;
-};
-export type StringContains = {
-  $cts: string;
-};
-export type StartsWith = {
-  $sw: string;
-};
-export type EndsWith = {
-  $ew: string;
-};
+export type Equals = inferClause<typeof COMMON_CLAUSES, '$eq'>;
+
+export type NotEquals = inferClause<typeof COMMON_CLAUSES, '$ne'>;
+
+export type ObjectIn<T = any> = inferClause<
+  typeof COMMON_CLAUSES,
+  '$in',
+  T[]
+>;
+
+export type ObjectNotIn<T = any> = inferClause<
+  typeof COMMON_CLAUSES,
+  '$nin',
+  T[]
+>;
+
+export type GreaterThan = inferClause<
+  typeof NUMBER_CLAUSES,
+  '$gt',
+  number
+>;
+
+export type GreaterThanOrEquals = inferClause<
+  typeof NUMBER_CLAUSES,
+  '$gte',
+  number
+>;
+
+export type LessThan = inferClause<typeof NUMBER_CLAUSES, '$lt', number>;
+
+export type LessThanOrEquals = inferClause<
+  typeof NUMBER_CLAUSES,
+  '$lte',
+  number
+>;
+
+export type Modulo = inferClause<typeof NUMBER_CLAUSES, '$mod', number>;
+
+export type StringContains = inferClause<
+  typeof STRING_CLAUSES,
+  '$cts',
+  string
+>;
+
+export type StartsWith = inferClause<typeof STRING_CLAUSES, '$sw', string>;
+
+export type EndsWith = inferClause<typeof STRING_CLAUSES, '$ew', string>;
+
 export type Language =
   | 'da'
   | 'du'
@@ -51,39 +88,47 @@ export type Language =
   | 'es'
   | 'sv'
   | 'tr';
-export type RegEx = {
-  $regex: string | RegExp;
-};
-export type Text = {
-  $text: string | RegExp;
-};
-export type TypeAliases =
-  | 'double'
-  | 'string'
-  | 'object'
-  | 'array'
-  | 'binData'
-  | 'objectId'
-  | 'bool';
+
+export type RegEx = inferClause<
+  typeof STRING_CLAUSES,
+  '$regex',
+  string | RegExp
+>;
+
+export type TypeAliases = inferUnion<typeof TYPE_ALIASES>;
+
 type ArrayHelper1<T extends any[]> = Partial<VSO<T[number]>> | T[number];
-export type All<T extends any[] = any[]> = {
-  $all: T extends any[] ? ArrayHelper1<T> : never;
-};
-export type ElementMatch<T extends any[] = any[]> = {
-  $em: T extends any[] ? ArrayHelper1<T> : never;
-};
-export type Size<T extends any[] = any[]> = {
-  $size: T extends any[] ? number : never;
-};
+
+export type All<T extends any[] = any[]> = inferClause<
+  typeof ARRAY_CLAUSES,
+  '$all',
+  ArrayHelper1<T>
+>;
+
+export type ElementMatch<T extends any[] = any[]> = inferClause<
+  typeof ARRAY_CLAUSES,
+  '$em',
+  ArrayHelper1<T>
+>;
+
+export type Size = inferClause<typeof ARRAY_CLAUSES, '$size', number>;
+
 export type ArrayClauses<T = any[]> = T extends any[]
-  ? All<T> | ElementMatch<T> | Size<T>
+  ? All<T> | ElementMatch<T> | Size
   : {};
-export type ExistsProp = {
-  $exists: true;
-};
-export type NotExistsProp = {
-  $exists: false;
-};
+
+export type ExistsProp = inferClause<
+  typeof EXIST_CLAUSES,
+  '$exists',
+  true
+>;
+
+export type NotExistsProp = inferClause<
+  typeof EXIST_CLAUSES,
+  '$exists',
+  false
+>;
+
 type VSOAny<T = any> = Equals & NotEquals & ObjectIn<T> & ObjectNotIn<T>;
 type VSONumber = VSOAny<number> &
   GreaterThan &
@@ -91,32 +136,48 @@ type VSONumber = VSOAny<number> &
   LessThan &
   LessThanOrEquals &
   Modulo;
-type VSOString = VSOAny<string> & StringContains & StartsWith & EndsWith;
+type VSOString = VSOAny<string> &
+  StringContains &
+  StartsWith &
+  EndsWith &
+  RegEx;
 export type ValueSearchOperations<T = string> = T extends number
   ? VSONumber
   : T extends string
   ? VSOString
   : VSOAny<T>;
 export type VSO<T = any> = ValueSearchOperations<T>;
+
 type LogH<T> = Partial<VSO<T> | LogicalClauses<T> | T>;
-export type And<T = any> = {
-  $and: LogH<T>[];
-};
+
+export type And<T = any> = inferClause<
+  typeof LOGICAL_CLAUSES,
+  '$and',
+  LogH<T>[]
+>;
+
 export type Not<T = any> = {
   $not: LogH<T>;
 };
-export type Nor<T = any> = {
-  $nor: LogH<T>[];
-};
-export type Or<T = any> = {
-  $or: LogH<T>[];
-};
-export type LogicalClauses<T = any> = And<T> | Not<T> | Nor<T> | Or<T>;
-export type Slice = {
-  $slice: number | [number, number];
-};
 
-export type SearchOperation<K> = K extends
+export type Nor<T = any> = inferClause<
+  typeof LOGICAL_CLAUSES,
+  '$nor',
+  LogH<T>[]
+>;
+
+export type Or<T = any> = inferClause<
+  typeof LOGICAL_CLAUSES,
+  '$or',
+  LogH<T>[]
+>;
+
+export type LogicalClauses<T = any> = And<T> | Not<T> | Nor<T> | Or<T>;
+// export type Slice = {
+//   $slice: number | [number, number];
+// };
+
+export type SearchOperation<K = any> = K extends
   | string
   | number
   | bigint
@@ -133,13 +194,19 @@ export type SearchOperation<K> = K extends
   : {
       [key in keyof K]?: SearchOperation<K[key]>;
     };
-export type DataSearchOperations<T> =
-  | Not<T>
-  | {
-      [key in keyof T]?: SearchOperation<T[key]>;
-    };
 
-export function isNotClause(value: any): value is Not {
-  return Object.keys(value) === ['$not'];
-}
-export {};
+export type SO<K> = SearchOperation<K>;
+
+export type ObjectSearchOperations<T = any> = {
+  [key in keyof T]?: SearchOperation<T[key]>;
+};
+
+export type DataSearchOperations<T = any> =
+  | Not<T>
+  | ObjectSearchOperations<T>;
+
+export type OSO<T = any> = ObjectSearchOperations<T>;
+export type DSO<T = any> = DataSearchOperations<T>;
+
+export type NonNullPrimitive = NExclude<Primitive, null | undefined>;
+// TODO: Use zod to generate types

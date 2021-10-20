@@ -4,3 +4,9 @@ export interface AtomicData<T = any> {
   _delete: string;
   data: T;
 }
+
+type Toto = {  [key: string]: boolean };
+
+const toto: Toto = {
+  rtey: true,
+};

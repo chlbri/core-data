@@ -2,8 +2,9 @@ import deepEquals from 'fast-deep-equal';
 import {
   DataSearchOperations,
   isNotClause,
+  Not,
   SearchOperation,
-} from '../.config/types';
+} from '../.config';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -143,7 +144,11 @@ export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
   const funcs: ((arg: T) => boolean)[] = [];
 
   if (isNotClause(filter)) {
-    const entries = Object.entries(filter.$not);
+    const entries = Object.entries(filter.$not) as [
+      keyof T,
+      SearchOperation<T[keyof T]>,
+    ][];
+
     entries.forEach(([key, value]) => {
       if (value) {
         const func = (arg: T) => {
@@ -153,12 +158,15 @@ export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
       }
     });
   } else {
-    const entries = Object.entries(filter);
+    const entries = Object.entries(filter) as [
+      keyof T,
+      SearchOperation<T[keyof T]>,
+    ][];
 
     entries.forEach(([key, value]) => {
       if (value) {
         const func = (arg: T) => {
-          return inStreamSearchAdapterKey(value)((arg as any)[key]);
+          return inStreamSearchAdapterKey(value)(arg[key]);
         };
         funcs.push(func);
       }
@@ -170,3 +178,6 @@ export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
   };
   return resolver;
 }
+
+
+const ert : Not<string> = {$not:{}}
