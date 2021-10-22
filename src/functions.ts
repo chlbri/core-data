@@ -1,4 +1,3 @@
-import { tuple, ZodLiteral } from 'zod';
 import { AtomicData, WithoutPermissions } from './entities';
 import { PERMISSIONS_STRINGS } from './schemas';
 import type { Not, OSO, VSO } from './types/data';
