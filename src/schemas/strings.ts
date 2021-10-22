@@ -1,5 +1,4 @@
-import { literal, tuple, TypeOf } from 'zod';
-import { concatTuple } from '../.config';
+import { literal, tuple } from 'zod';
 export const STATUS_STRINGS = [
   'information',
   'success',
@@ -63,14 +62,11 @@ export const TYPE_ALIASES = tuple([
   literal('bool'),
 ]);
 
-
-export const CLAUSES = concatTuple(
+export const CLAUSES = tuple([
   EXIST_CLAUSES,
   ...COMMON_CLAUSES.items,
   ...NUMBER_CLAUSES.items,
   ...STRING_CLAUSES.items,
   ...ARRAY_CLAUSES.items,
   ...LOGICAL_CLAUSES.items,
-);
-
-type Test = TypeOf<typeof CLAUSES>
+]);

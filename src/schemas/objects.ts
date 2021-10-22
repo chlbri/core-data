@@ -1,6 +1,5 @@
-import { array, number, object, string, ZodObject, ZodType } from 'zod';
-
-import type { TypeOf, ZodRawShape } from 'zod';
+import type { ZodRawShape } from 'zod';
+import { array, object, string, ZodObject, ZodType } from 'zod';
 
 // #region Configuration
 // #region permissions
@@ -67,7 +66,3 @@ export const atomicDataSchema = <T extends ZodRawShape | ZodType<any>>(
   });
 };
 // #endregion
-
-const dert = atomicDataSchema({ go: string(), _iod: number() });
-
-type Test = TypeOf<typeof dert>;

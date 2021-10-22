@@ -1,12 +1,6 @@
 export interface AtomicData<T = any> {
-  _read: string;
-  _update: string;
-  _delete: string;
+  _read: (string | number)[];
+  _update: (string | number)[];
+  _delete: (string | number)[];
   data: T;
 }
-
-type Toto = {  [key: string]: boolean };
-
-const toto: Toto = {
-  rtey: true,
-};
