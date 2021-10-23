@@ -4,6 +4,8 @@
   "description": "GitPod for Typescript",
   "repository": "https://github.com/chlbri/core-data.git",
   "author": "chlbri <bri_lvi@icloud.com>",
+  "main":"./dist/index.js",
+  "typings":".:dist/index.d.ts",
   "license": "MIT",
   "private": true,
   "scripts": {
