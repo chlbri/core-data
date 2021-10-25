@@ -5,10 +5,10 @@ import { Entity, WithId, WithoutId } from '../entities';
 import type { DSO } from './data';
 export declare type PRD<T> = Promise<RD<T, TypeOf<Status>>>;
 declare type DP<T> = DeepPartial<T>;
-declare type WI<T> = WithId<T>;
-declare type WO<T> = WithoutId<T>;
-declare type PRDI<T> = PRD<WI<DP<T>>>;
-declare type PRDIM<T> = PRD<WI<DP<T>>[]>;
+declare type WI<T> = WithId<DP<T>>;
+declare type WO<T> = WithoutId<DP<T>>;
+declare type PRDI<T> = PRD<WI<T>>;
+declare type PRDIM<T> = PRD<WI<T>[]>;
 export declare type ErrorHandler = (error?: any) => never;
 export declare type QueryOptions = {
     limit?: number;

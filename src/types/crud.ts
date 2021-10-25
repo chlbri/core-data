@@ -8,11 +8,11 @@ export type PRD<T> = Promise<RD<T, TypeOf<Status>>>;
 
 type DP<T> = DeepPartial<T>;
 
-type WI<T> = WithId<T>;
-type WO<T> = WithoutId<T>;
+type WI<T> = WithId<DP<T>>;
+type WO<T> = WithoutId<DP<T>>;
 
-type PRDI<T> = PRD<WI<DP<T>>>;
-type PRDIM<T> = PRD<WI<DP<T>>[]>;
+type PRDI<T> = PRD<WI<T>>;
+type PRDIM<T> = PRD<WI<T>[]>;
 // type PRDO<T> = PRD<WO<DP<T>>>;
 // type PRDOM<T> = PRD<WO<DP<T>>[]>;
 
