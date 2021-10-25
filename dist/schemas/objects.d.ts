@@ -1,11 +1,19 @@
-import type { ZodRawShape } from 'zod';
-import { ZodObject, ZodType } from 'zod';
+import { ZodRawShape, ZodObject, ZodType } from 'zod';
 export declare const entitySchema: ZodObject<{
     _id: import("zod").ZodString;
+    _createdAt: import("zod").ZodDate;
+    _updatedAt: import("zod").ZodDate;
+    _deletedAt: import("zod").ZodUnion<[import("zod").ZodLiteral<false>, import("zod").ZodDate]>;
 }, "strip", import("zod").ZodTypeAny, {
     _id: string;
+    _createdAt: Date;
+    _updatedAt: Date;
+    _deletedAt: false | Date;
 }, {
     _id: string;
+    _createdAt: Date;
+    _updatedAt: Date;
+    _deletedAt: false | Date;
 }>;
 export declare const loginSchema: ZodObject<{
     login: import("zod").ZodString;
@@ -18,19 +26,16 @@ export declare const loginSchema: ZodObject<{
     login: string;
 }>;
 export declare const actorSchema: ZodObject<{
-    login: import("zod").ZodString;
+    _id: import("zod").ZodString;
     ip: import("zod").ZodOptional<import("zod").ZodString>;
     permissions: import("zod").ZodArray<import("zod").ZodString, "many">;
-    _id: import("zod").ZodString;
 }, "strip", import("zod").ZodTypeAny, {
     ip?: string | undefined;
     _id: string;
-    login: string;
     permissions: string[];
 }, {
     ip?: string | undefined;
     _id: string;
-    login: string;
     permissions: string[];
 }>;
 export declare const userSchema: ZodObject<{

@@ -18,14 +18,16 @@ const perimissionsBools = {
 // #endregion
 exports.entitySchema = (0, zod_1.object)({
     _id: (0, zod_1.string)(),
+    _createdAt: (0, zod_1.date)(),
+    _updatedAt: (0, zod_1.date)(),
+    _deletedAt: (0, zod_1.union)([(0, zod_1.literal)(false), (0, zod_1.date)()]),
 });
 exports.loginSchema = (0, zod_1.object)({
     login: (0, zod_1.string)(),
     password: (0, zod_1.string)().min(6),
 });
 exports.actorSchema = (0, zod_1.object)({
-    ...exports.entitySchema.shape,
-    login: exports.loginSchema.shape.login,
+    _id: exports.entitySchema.shape._id,
     ip: (0, zod_1.string)().url().optional(),
     permissions: (0, zod_1.array)((0, zod_1.string)()),
 });

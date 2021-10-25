@@ -1,5 +1,14 @@
-import type { ZodRawShape } from 'zod';
-import { array, object, string, ZodObject, ZodType } from 'zod';
+import {
+  literal,
+  union,
+  ZodRawShape,
+  array,
+  object,
+  string,
+  ZodObject,
+  ZodType,
+  date,
+} from 'zod';
 
 // #region Configuration
 // #region permissions
@@ -19,6 +28,9 @@ const perimissionsBools = {
 
 export const entitySchema = object({
   _id: string(),
+  _createdAt: date(),
+  _updatedAt: date(),
+  _deletedAt: union([literal(false), date()]),
 });
 
 export const loginSchema = object({
@@ -27,8 +39,7 @@ export const loginSchema = object({
 });
 
 export const actorSchema = object({
-  ...entitySchema.shape,
-  login: loginSchema.shape.login,
+  _id: entitySchema.shape._id,
   ip: string().url().optional(),
   permissions: array(string()),
 });
