@@ -1,4 +1,4 @@
-import { AtomicData, WithoutPermissions } from './entities';
+import { AtomicData, Entity, WithoutPermissions } from './entities';
 import { PERMISSIONS_STRINGS } from './schemas';
 import type { Not, OSO, VSO } from './types/data';
 
@@ -26,14 +26,24 @@ type AD<T> = AtomicData<T>;
 
 export function atomicData<T>(
   data: T,
-  _read: AD<T>['_read'],
-  _update: AD<T>['_update'],
-  _delete: AD<T>['_delete'],
+  __read: AD<T>['__read'],
+  __write: AD<T>['__write'],
+  __delete: AD<T>['__delete'],
 ): AD<T> {
   return {
     data,
-    _read,
-    _update,
-    _delete,
+    __read,
+    __write,
+    __delete,
+  };
+}
+
+export function entity<T>(_id: string, shape: T): Entity {
+  return {
+    _id,
+    ...shape,
+    _createdAt: new Date(),
+    _updatedAt: new Date(),
+    _deletedAt: false,
   };
 }

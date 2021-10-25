@@ -8,19 +8,21 @@ import {
   ZodObject,
   ZodType,
   date,
+  tuple,
+  number,
 } from 'zod';
 
 // #region Configuration
 // #region permissions
-const permissionsSchema = {
+export const permissionsSchema = {
   __read: array(string()),
-  __update: array(string()),
+  __write: array(string()),
   __delete: array(string()),
 };
 
 const perimissionsBools = {
   __read: true,
-  __update: true,
+  __write: true,
   __delete: true,
 } as const;
 // #endregion
@@ -33,15 +35,15 @@ export const entitySchema = object({
   _deletedAt: union([literal(false), date()]),
 });
 
-export const loginSchema = object({
-  login: string(),
-  password: string().min(6),
-});
-
 export const actorSchema = object({
   _id: entitySchema.shape._id,
   ip: string().url().optional(),
   permissions: array(string()),
+});
+
+export const loginSchema = object({
+  login: string(),
+  password: string().min(6),
 });
 
 export const userSchema = object({ __privateKey: string() });
@@ -51,6 +53,19 @@ export const humanSchema = object({
   lastName: string().min(1).optional(),
 });
 
+export const phoneNumber = tuple([array(number()), number()]);
+
+export const humanSchemaAdd = object({
+  ...humanSchema.shape,
+  bio: string().min(100).optional(),
+  mail: string().email().optional(),
+  phoneNumber: array(phoneNumber).optional(),
+});
+
+export const user = object({
+  ...entitySchema.shape,
+  __privateKey: string(),
+});
 // #region Generics
 export const withoutID = <T extends ZodRawShape>(shape: T) =>
   object(shape).omit({ _id: true });

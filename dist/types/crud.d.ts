@@ -1,5 +1,5 @@
 import RD, { Status } from 'core-promises';
-import type { DeepPartial, NOmit } from 'core/dist';
+import type { DeepPartial, NOmit } from 'core';
 import { TypeOf } from 'zod/lib/types';
 import { Entity, WithId, WithoutId } from '../entities';
 import type { DSO } from './data';

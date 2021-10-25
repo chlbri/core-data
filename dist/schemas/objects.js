@@ -1,17 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.atomicDataSchema = exports.withID = exports.withoutPassword = exports.withoutPermissions = exports.withoutID = exports.humanSchema = exports.userSchema = exports.actorSchema = exports.loginSchema = exports.entitySchema = void 0;
+exports.atomicDataSchema = exports.withID = exports.withoutPassword = exports.withoutPermissions = exports.withoutID = exports.user = exports.humanSchemaAdd = exports.phoneNumber = exports.humanSchema = exports.userSchema = exports.loginSchema = exports.actorSchema = exports.entitySchema = exports.permissionsSchema = void 0;
 const zod_1 = require("zod");
 // #region Configuration
 // #region permissions
-const permissionsSchema = {
+exports.permissionsSchema = {
     __read: (0, zod_1.array)((0, zod_1.string)()),
-    __update: (0, zod_1.array)((0, zod_1.string)()),
+    __write: (0, zod_1.array)((0, zod_1.string)()),
     __delete: (0, zod_1.array)((0, zod_1.string)()),
 };
 const perimissionsBools = {
     __read: true,
-    __update: true,
+    __write: true,
     __delete: true,
 };
 // #endregion
@@ -22,19 +22,30 @@ exports.entitySchema = (0, zod_1.object)({
     _updatedAt: (0, zod_1.date)(),
     _deletedAt: (0, zod_1.union)([(0, zod_1.literal)(false), (0, zod_1.date)()]),
 });
-exports.loginSchema = (0, zod_1.object)({
-    login: (0, zod_1.string)(),
-    password: (0, zod_1.string)().min(6),
-});
 exports.actorSchema = (0, zod_1.object)({
     _id: exports.entitySchema.shape._id,
     ip: (0, zod_1.string)().url().optional(),
     permissions: (0, zod_1.array)((0, zod_1.string)()),
 });
+exports.loginSchema = (0, zod_1.object)({
+    login: (0, zod_1.string)(),
+    password: (0, zod_1.string)().min(6),
+});
 exports.userSchema = (0, zod_1.object)({ __privateKey: (0, zod_1.string)() });
 exports.humanSchema = (0, zod_1.object)({
     firstNames: (0, zod_1.array)((0, zod_1.string)()).optional(),
     lastName: (0, zod_1.string)().min(1).optional(),
+});
+exports.phoneNumber = (0, zod_1.tuple)([(0, zod_1.array)((0, zod_1.number)()), (0, zod_1.number)()]);
+exports.humanSchemaAdd = (0, zod_1.object)({
+    ...exports.humanSchema.shape,
+    bio: (0, zod_1.string)().min(100).optional(),
+    mail: (0, zod_1.string)().email().optional(),
+    phoneNumber: (0, zod_1.array)(exports.phoneNumber).optional(),
+});
+exports.user = (0, zod_1.object)({
+    ...exports.entitySchema.shape,
+    __privateKey: (0, zod_1.string)(),
 });
 // #region Generics
 const withoutID = (shape) => (0, zod_1.object)(shape).omit({ _id: true });
@@ -49,7 +60,7 @@ const atomicDataSchema = (shape) => {
     const data = (shape instanceof zod_1.ZodType ? shape : (0, zod_1.object)(shape));
     return (0, zod_1.object)({
         data,
-        ...permissionsSchema,
+        ...exports.permissionsSchema,
     });
 };
 exports.atomicDataSchema = atomicDataSchema;
