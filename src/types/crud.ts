@@ -27,25 +27,25 @@ export type QueryOptions = {
 
 // #region Create
 
-export type CreateMany<T extends Entity> = (
-  data: WO<T>[],
-  errorHandler?: ErrorHandler,
-) => PRD<{
+export type CreateMany<T extends Entity> = (args: {
+  data: WO<T>[];
+  options?: QueryOptions;
+}) => PRD<{
   all: number;
   done: number;
   ids: string[];
 }>;
 
-export type CreateOne<T extends Entity> = (
-  data: WO<T>,
-  errorHandler?: ErrorHandler,
-) => PRD<string>;
+export type CreateOne<T extends Entity> = (args: {
+  data: WO<T>;
+  options?: QueryOptions;
+}) => PRD<string>;
 
-export type UpsertOne<T extends Entity> = (
-  _id: string,
-  data: WithoutId<T>,
-  errorHandler?: ErrorHandler,
-) => PRD<string>;
+export type UpsertOne<T extends Entity> = (args: {
+  _id: string;
+  data: WithoutId<T>;
+  options?: QueryOptions;
+}) => PRD<string>;
 
 // #endregion
 
@@ -55,26 +55,27 @@ export type ReadAll<T extends Entity> = (
   options?: QueryOptions,
 ) => PRDIM<T>;
 
-export type ReadMany<T extends Entity> = (
-  filters: DSO<T>,
-  options?: QueryOptions,
-) => PRDIM<T>;
+export type ReadMany<T extends Entity> = (args: {
+  filters: DSO<T>;
+  options?: QueryOptions;
+}) => PRDIM<T>;
 
-export type ReadManyByIds<T extends Entity> = (
-  ids: string[],
-  filters?: DSO<T>,
-  options?: QueryOptions,
-) => PRDIM<T>;
+export type ReadManyByIds<T extends Entity> = (args: {
+  ids: string[];
+  filters?: DSO<T>;
+  options?: QueryOptions;
+}) => PRDIM<T>;
 
-export type ReadOne<T extends Entity> = (
-  filters: DSO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRDI<T>;
+export type ReadOne<T extends Entity> = (args: {
+  filters: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRDI<T>;
 
-export type ReadOneById<T extends Entity> = (
-  id: string,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRDI<T>;
+export type ReadOneById<T extends Entity> = (args: {
+  id: string;
+  filters?: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRDI<T>;
 
 // #endregion
 
@@ -82,76 +83,80 @@ export type ReadOneById<T extends Entity> = (
 
 export type CountAll = () => PRD<number>;
 
-export type Count<T extends Entity> = (
-  filters: DSO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<number>;
+export type Count<T extends Entity> = (args: {
+  filters: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<number>;
 
 // #endregion
 
 // #region Update
 
-export type UpdateAll<T extends Entity> = (
-  data: WO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type UpdateAll<T extends Entity> = (args: {
+  data: WO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type UpdateMany<T extends Entity> = (
-  filters: DSO<T>,
-  data: WO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type UpdateMany<T extends Entity> = (args: {
+  filters: DSO<T>;
+  data: WO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type UpdateManyByIds<T extends Entity> = (
-  ids: string[],
-  data: WO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type UpdateManyByIds<T extends Entity> = (args: {
+  ids: string[];
+  data: WO<T>;
+  filters?: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type UpdateOne<T extends Entity> = (
-  filters: DSO<T>,
-  data: WO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type UpdateOne<T extends Entity> = (args: {
+  filters: DSO<T>;
+  data: WO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
-export type UpdateOneById<T extends Entity> = (
-  id: string,
-  data: WO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type UpdateOneById<T extends Entity> = (args: {
+  id: string;
+  filters?: DSO<T>;
+  data: WO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
 // #endregion
 
 // #region Set
 
-export type SetAll<T extends Entity> = (
-  data: WO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type SetAll<T extends Entity> = (args: {
+  data: WO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type SetMany<T extends Entity> = (
-  filters: DSO<T>,
-  data: WO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type SetMany<T extends Entity> = (args: {
+  filters: DSO<T>;
+  data: WO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type SetManyByIds<T extends Entity> = (
-  ids: string[],
-  data: WO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type SetManyByIds<T extends Entity> = (args: {
+  ids: string[];
+  filters?: DSO<T>;
+  data: WO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type SetOne<T extends Entity> = (
-  filters: DSO<T>,
-  data: WO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type SetOne<T extends Entity> = (args: {
+  filters: DSO<T>;
+  data: WO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
-export type SetOneById<T extends Entity> = (
-  id: string,
-  data: WO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type SetOneById<T extends Entity> = (args: {
+  id: string;
+  data: WO<T>;
+  filters?: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
 // #endregion
 
@@ -159,25 +164,27 @@ export type SetOneById<T extends Entity> = (
 
 export type DeleteAll = (options?: QueryOptions) => PRD<string[]>;
 
-export type DeleteMany<T> = (
-  filters: DSO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type DeleteMany<T> = (args: {
+  filters: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type DeleteManyByIds = (
-  ids: string[],
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type DeleteManyByIds<T> = (args: {
+  ids: string[];
+  filters?: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type DeleteOne<T> = (
-  filters: DSO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type DeleteOne<T> = (args: {
+  filters: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
-export type DeleteOneById = (
-  id: string,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type DeleteOneById<T> = (args: {
+  id: string;
+  filters?: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
 // #endregion
 
@@ -185,25 +192,27 @@ export type DeleteOneById = (
 
 export type RemoveAll = (options?: QueryOptions) => PRD<string[]>;
 
-export type RemoveMany<T> = (
-  filters: DSO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type RemoveMany<T> = (args: {
+  filters: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type RemoveManyByIds = (
-  ids: string[],
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type RemoveManyByIds<T> = (args: {
+  ids: string[];
+  filters?: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type RemoveOne<T> = (
-  filters: DSO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type RemoveOne<T> = (args: {
+  filters: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
-export type RemoveOneById = (
-  id: string,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type RemoveOneById<T> = (args: {
+  id: string;
+  filters?: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
 // #endregion
 
@@ -211,25 +220,27 @@ export type RemoveOneById = (
 
 export type RetrieveAll = (options?: QueryOptions) => PRD<string[]>;
 
-export type RetrieveMany<T> = (
-  filters: DSO<T>,
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type RetrieveMany<T> = (args: {
+  filters: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type RetrieveManyByIds = (
-  ids: string[],
-  options?: QueryOptions,
-) => PRD<string[]>;
+export type RetrieveManyByIds<T> = (args: {
+  ids: string[];
+  filters?: DSO<T>;
+  options?: QueryOptions;
+}) => PRD<string[]>;
 
-export type RetrieveOne<T> = (
-  filters: DSO<T>,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type RetrieveOne<T> = (args: {
+  filters: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
-export type RetrieveOneById = (
-  id: string,
-  options?: NOmit<QueryOptions, 'limit'>,
-) => PRD<string>;
+export type RetrieveOneById<T> = (args: {
+  id: string;
+  filters?: DSO<T>;
+  options?: NOmit<QueryOptions, 'limit'>;
+}) => PRD<string>;
 
 // #endregion
 
@@ -256,17 +267,17 @@ export interface CRUD<T extends Entity> {
   setOneById: SetOneById<T>;
   deleteAll: DeleteAll;
   deleteMany: DeleteMany<T>;
-  deleteManyByIds: DeleteManyByIds;
+  deleteManyByIds: DeleteManyByIds<T>;
   deleteOne: DeleteOne<T>;
-  deleteOneById: DeleteOneById;
+  deleteOneById: DeleteOneById<T>;
   removeAll: RemoveAll;
   removeMany: RemoveMany<T>;
-  removeManyByIds: RemoveManyByIds;
+  removeManyByIds: RemoveManyByIds<T>;
   removeOne: RemoveOne<T>;
-  removeOneById: RemoveOneById;
+  removeOneById: RemoveOneById<T>;
   retrieveAll: RetrieveAll;
   retrieveMany: RetrieveMany<T>;
-  retrieveManyByIds: RetrieveManyByIds;
+  retrieveManyByIds: RetrieveManyByIds<T>;
   retrieveOne: RetrieveOne<T>;
-  retrieveOneById: RetrieveOneById;
+  retrieveOneById: RetrieveOneById<T>;
 }

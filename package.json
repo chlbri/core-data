@@ -1,6 +1,6 @@
 {
   "name": "@core/data",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "GitPod for Typescript",
   "repository": "https://github.com/chlbri/core-data.git",
   "author": "chlbri <bri_lvi@icloud.com>",
