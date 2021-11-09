@@ -14,9 +14,9 @@ export type PRD<T> = Promise<RD<T, Status>>;
 type DP<T> = DeepPartial<T>;
 
 type WI<T> = WithId<DP<T>>;
-type DWI<T> = DivideEntity<WI<T>>
+type DWI<T> = DivideEntity<WI<T>>;
 type WO<T> = WithoutId<DP<T>>;
-type DWO<T> = DivideEntity<WO<T>>
+type DWO<T> = DivideEntity<WO<T>>;
 
 type PRDI<T> = PRD<WI<T>>;
 type PRDIM<T> = PRD<WI<T>[]>;
