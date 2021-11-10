@@ -48,7 +48,7 @@ export type CreateOne<T extends Entity> = (args: {
 }) => PRD<string>;
 
 export type UpsertOne<T extends Entity> = (args: {
-  _id: string;
+  _id?: string;
   data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string>;

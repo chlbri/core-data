@@ -32,7 +32,7 @@ export declare type CreateOne<T extends Entity> = (args: {
     options?: QueryOptions;
 }) => PRD<string>;
 export declare type UpsertOne<T extends Entity> = (args: {
-    _id: string;
+    _id?: string;
     data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string>;
