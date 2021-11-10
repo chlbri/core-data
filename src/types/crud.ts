@@ -11,14 +11,14 @@ export type DivideEntity<T> = {
 
 export type PRD<T> = Promise<RD<T, Status>>;
 
-type DP<T> = DeepPartial<T>;
+export type DP<T> = DeepPartial<T>;
 
-type WI<T> = WithId<DP<T>>;
-type WO<T> = WithoutId<DP<T>>;
-type DWO<T> = DivideEntity<WO<T>>;
+export type WI<T> = WithId<DP<T>>;
+export type WO<T> = WithoutId<DP<T>>;
+export type DWO<T> = DivideEntity<WO<T>>;
 
-type PRDI<T> = PRD<WI<T>>;
-type PRDIM<T> = PRD<WI<T>[]>;
+export type PRDI<T> = PRD<WI<T>>;
+export type PRDIM<T> = PRD<WI<T>[]>;
 // type PRDO<T> = PRD<WO<DP<T>>>;
 // type PRDOM<T> = PRD<WO<DP<T>>[]>;
 
@@ -34,7 +34,7 @@ export type QueryOptions = {
 // #region Create
 
 export type CreateMany<T extends Entity> = (args: {
-  data: DWO<T>[];
+  data: WO<T>[];
   options?: QueryOptions;
 }) => PRD<{
   all: number;
@@ -43,13 +43,13 @@ export type CreateMany<T extends Entity> = (args: {
 }>;
 
 export type CreateOne<T extends Entity> = (args: {
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string>;
 
 export type UpsertOne<T extends Entity> = (args: {
   _id: string;
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string>;
 
@@ -99,33 +99,33 @@ export type Count<T extends Entity> = (args: {
 // #region Update
 
 export type UpdateAll<T extends Entity> = (args: {
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type UpdateMany<T extends Entity> = (args: {
   filters: DSO<T>;
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type UpdateManyByIds<T extends Entity> = (args: {
   ids: string[];
-  data: DWO<T>;
+  data: WO<T>;
   filters?: DSO<T>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type UpdateOne<T extends Entity> = (args: {
   filters: DSO<T>;
-  data: DWO<T>;
+  data: WO<T>;
   options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 
 export type UpdateOneById<T extends Entity> = (args: {
   id: string;
   filters?: DSO<T>;
-  data: DWO<T>;
+  data: WO<T>;
   options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 
@@ -134,32 +134,32 @@ export type UpdateOneById<T extends Entity> = (args: {
 // #region Set
 
 export type SetAll<T extends Entity> = (args: {
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type SetMany<T extends Entity> = (args: {
   filters: DSO<T>;
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type SetManyByIds<T extends Entity> = (args: {
   ids: string[];
   filters?: DSO<T>;
-  data: DWO<T>;
+  data: WO<T>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type SetOne<T extends Entity> = (args: {
   filters: DSO<T>;
-  data: DWO<T>;
+  data: WO<T>;
   options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 
 export type SetOneById<T extends Entity> = (args: {
   id: string;
-  data: DWO<T>;
+  data: WO<T>;
   filters?: DSO<T>;
   options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;

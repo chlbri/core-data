@@ -6,12 +6,12 @@ export declare type DivideEntity<T> = {
     [key in keyof T]: T[key] extends Primitive ? T[key] : string | undefined | T[key];
 };
 export declare type PRD<T> = Promise<RD<T, Status>>;
-declare type DP<T> = DeepPartial<T>;
-declare type WI<T> = WithId<DP<T>>;
-declare type WO<T> = WithoutId<DP<T>>;
-declare type DWO<T> = DivideEntity<WO<T>>;
-declare type PRDI<T> = PRD<WI<T>>;
-declare type PRDIM<T> = PRD<WI<T>[]>;
+export declare type DP<T> = DeepPartial<T>;
+export declare type WI<T> = WithId<DP<T>>;
+export declare type WO<T> = WithoutId<DP<T>>;
+export declare type DWO<T> = DivideEntity<WO<T>>;
+export declare type PRDI<T> = PRD<WI<T>>;
+export declare type PRDIM<T> = PRD<WI<T>[]>;
 export declare type ErrorHandler = (error?: any) => never;
 export declare type QueryOptions = {
     limit?: number;
@@ -20,7 +20,7 @@ export declare type QueryOptions = {
     before?: string;
 };
 export declare type CreateMany<T extends Entity> = (args: {
-    data: DWO<T>[];
+    data: WO<T>[];
     options?: QueryOptions;
 }) => PRD<{
     all: number;
@@ -28,12 +28,12 @@ export declare type CreateMany<T extends Entity> = (args: {
     ids: string[];
 }>;
 export declare type CreateOne<T extends Entity> = (args: {
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string>;
 export declare type UpsertOne<T extends Entity> = (args: {
     _id: string;
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string>;
 export declare type ReadAll<T extends Entity> = (options?: QueryOptions) => PRDIM<T>;
@@ -61,54 +61,54 @@ export declare type Count<T extends Entity> = (args: {
     options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<number>;
 export declare type UpdateAll<T extends Entity> = (args: {
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type UpdateMany<T extends Entity> = (args: {
     filters: DSO<T>;
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type UpdateManyByIds<T extends Entity> = (args: {
     ids: string[];
-    data: DWO<T>;
+    data: WO<T>;
     filters?: DSO<T>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type UpdateOne<T extends Entity> = (args: {
     filters: DSO<T>;
-    data: DWO<T>;
+    data: WO<T>;
     options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 export declare type UpdateOneById<T extends Entity> = (args: {
     id: string;
     filters?: DSO<T>;
-    data: DWO<T>;
+    data: WO<T>;
     options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 export declare type SetAll<T extends Entity> = (args: {
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type SetMany<T extends Entity> = (args: {
     filters: DSO<T>;
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type SetManyByIds<T extends Entity> = (args: {
     ids: string[];
     filters?: DSO<T>;
-    data: DWO<T>;
+    data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type SetOne<T extends Entity> = (args: {
     filters: DSO<T>;
-    data: DWO<T>;
+    data: WO<T>;
     options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 export declare type SetOneById<T extends Entity> = (args: {
     id: string;
-    data: DWO<T>;
+    data: WO<T>;
     filters?: DSO<T>;
     options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
@@ -206,4 +206,3 @@ export interface CRUD<T extends Entity> {
     retrieveOne: RetrieveOne<T>;
     retrieveOneById: RetrieveOneById<T>;
 }
-export {};
