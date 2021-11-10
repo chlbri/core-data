@@ -1,12 +1,12 @@
 import RD, { Status } from 'core-promises';
-import type { DeepPartial, NOmit } from 'core';
+import type { DeepPartial, NOmit, Primitive } from 'core';
 import { Entity, WithId, WithoutId } from '../entities';
 import type { DSO } from './data';
 
 export type DivideEntity<T> = {
-  [key in keyof T]: T[key] extends object
-    ? string | undefined | T[key]
-    : T[key];
+  [key in keyof T]: T[key] extends Primitive
+    ? T[key]
+    : string | undefined | T[key];
 };
 
 export type PRD<T> = Promise<RD<T, Status>>;
