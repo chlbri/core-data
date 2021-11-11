@@ -1,6 +1,6 @@
 {
   "name": "@core/data",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "GitPod for Typescript",
   "repository": "https://github.com/chlbri/core-data.git",
   "author": "chlbri <bri_lvi@icloud.com>",
@@ -53,6 +53,8 @@
     "zod": "^3.10.1"
   },
   "peerDependencies": {
-    "zod": "^3.10.1"
+    "zod": "^3.10.1",
+    "core": "https://github.com/chlbri/core.git#publish",
+    "core-promises": "https://github.com/chlbri/core-promises.git#publish"
   }
 }

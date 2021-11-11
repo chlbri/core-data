@@ -36,6 +36,13 @@ export declare type UpsertOne<T extends Entity> = (args: {
     data: WO<T>;
     options?: QueryOptions;
 }) => PRD<string>;
+export declare type UpsertMany<T extends Entity> = (args: {
+    upserts: {
+        _id?: string;
+        data: WO<T>;
+    }[];
+    options?: QueryOptions;
+}) => PRD<string>;
 export declare type ReadAll<T extends Entity> = (options?: QueryOptions) => PRDIM<T>;
 export declare type ReadMany<T extends Entity> = (args: {
     filters: DSO<T>;
@@ -173,6 +180,7 @@ export interface CRUD<T extends Entity> {
     createMany: CreateMany<T>;
     createOne: CreateOne<T>;
     upsertOne: UpsertOne<T>;
+    upsertMany: UpsertMany<T>;
     readAll: ReadAll<T>;
     readMany: ReadMany<T>;
     readManyByIds: ReadManyByIds<T>;

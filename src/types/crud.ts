@@ -53,6 +53,11 @@ export type UpsertOne<T extends Entity> = (args: {
   options?: QueryOptions;
 }) => PRD<string>;
 
+export type UpsertMany<T extends Entity> = (args: {
+  upserts: { _id?: string; data: WO<T> }[];
+  options?: QueryOptions;
+}) => PRD<string>;
+
 // #endregion
 
 // #region Read
@@ -254,6 +259,7 @@ export interface CRUD<T extends Entity> {
   createMany: CreateMany<T>;
   createOne: CreateOne<T>;
   upsertOne: UpsertOne<T>;
+  upsertMany: UpsertMany<T>;
   readAll: ReadAll<T>;
   readMany: ReadMany<T>;
   readManyByIds: ReadManyByIds<T>;
