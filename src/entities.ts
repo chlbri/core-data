@@ -12,6 +12,10 @@ export type AtomicData<T> = {
   data: T;
 } & TypeOf<typeof perm>;
 
+export type AtomicObject<T extends Entity> = {
+  [key in keyof WithoutId<T>]: AtomicData<T[key]>;
+} & { _id: T['_id'] };
+
 type UnionPerm = keyof TypeOf<typeof perm>;
 
 export type WithoutPermissions<T> = Omit<T, UnionPerm>;

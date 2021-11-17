@@ -1,6 +1,51 @@
+import {
+  PermissionsForEntity,
+  PermissionsReader,
+} from './../types/permission';
+import { Entity } from './../entities';
+import {
+  Count,
+  CountAll,
+  CreateMany,
+  CreateOne,
+  CRUD,
+  DeleteAll,
+  DeleteMany,
+  DeleteManyByIds,
+  DeleteOne,
+  DeleteOneById,
+  ReadAll,
+  ReadMany,
+  ReadManyByIds,
+  ReadOne,
+  ReadOneById,
+  RemoveAll,
+  RemoveMany,
+  RemoveManyByIds,
+  RemoveOne,
+  RemoveOneById,
+  RetrieveAll,
+  RetrieveMany,
+  RetrieveManyByIds,
+  RetrieveOne,
+  RetrieveOneById,
+  SetAll,
+  SetMany,
+  SetManyByIds,
+  SetOne,
+  SetOneById,
+  UpdateAll,
+  UpdateMany,
+  UpdateManyByIds,
+  UpdateOne,
+  UpdateOneById,
+  UpsertMany,
+  UpsertOne,
+} from '../types/crud';
 import deepEquals from 'fast-deep-equal';
-import type { DataSearchOperations, SearchOperation } from '../types/data';
+import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import { isNotClause } from '../functions';
+import { AtomicObject } from '..';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -173,4 +218,54 @@ export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
     return funcs.reduce((acc, curr) => acc && curr(arg as any), true);
   };
   return resolver;
+}
+
+type Permission<T extends Entity> = {
+  permissionReader: PermissionsReader<T>;
+};
+
+
+
+export default class ArrayDB<T extends Entity> implements CRUD<T> {
+  /* , Permission<T> */
+  constructor(private _db: AtomicObject<T>[], private col?: string) {}
+  readonly permissionReader: PermissionsReader<T> = dso => {
+    this._db.filter(inStreamSearchAdapter(dso)).map(data => data);
+  };
+  createMany: CreateMany<T>;
+  createOne: CreateOne<T>;
+  upsertOne: UpsertOne<T>;
+  upsertMany: UpsertMany<T>;
+  readAll: ReadAll<T>;
+  readMany: ReadMany<T>;
+  readManyByIds: ReadManyByIds<T>;
+  readOne: ReadOne<T>;
+  readOneById: ReadOneById<T>;
+  countAll: CountAll;
+  count: Count<T>;
+  updateAll: UpdateAll<T>;
+  updateMany: UpdateMany<T>;
+  updateManyByIds: UpdateManyByIds<T>;
+  updateOne: UpdateOne<T>;
+  updateOneById: UpdateOneById<T>;
+  setAll: SetAll<T>;
+  setMany: SetMany<T>;
+  setManyByIds: SetManyByIds<T>;
+  setOne: SetOne<T>;
+  setOneById: SetOneById<T>;
+  deleteAll: DeleteAll;
+  deleteMany: DeleteMany<T>;
+  deleteManyByIds: DeleteManyByIds<T>;
+  deleteOne: DeleteOne<T>;
+  deleteOneById: DeleteOneById<T>;
+  removeAll: RemoveAll;
+  removeMany: RemoveMany<T>;
+  removeManyByIds: RemoveManyByIds<T>;
+  removeOne: RemoveOne<T>;
+  removeOneById: RemoveOneById<T>;
+  retrieveAll: RetrieveAll;
+  retrieveMany: RetrieveMany<T>;
+  retrieveManyByIds: RetrieveManyByIds<T>;
+  retrieveOne: RetrieveOne<T>;
+  retrieveOneById: RetrieveOneById<T>;
 }

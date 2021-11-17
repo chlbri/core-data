@@ -9,11 +9,11 @@ export const STATUS_STRINGS = [
   'timeout-error',
 ] as const;
 
-export const PERMISSIONS_STRINGS = [
-  '_read',
-  '_update',
-  '_delete',
-] as const;
+export const PERMISSIONS_STRINGS = tuple([
+  literal('_read'),
+  literal('_write'),
+  literal('_remove'),
+]) ;
 
 export const EXIST_CLAUSES = literal('$exists');
 
@@ -54,12 +54,13 @@ export const LOGICAL_CLAUSES = tuple([
 
 export const TYPE_ALIASES = tuple([
   literal('string'),
-  literal('double'),
+  literal('number'),
   literal('object'),
   literal('array'),
   literal('binData'),
   literal('objectId'),
-  literal('bool'),
+  literal('boolean'),
+  literal('date'),
 ]);
 
 export const CLAUSES = tuple([

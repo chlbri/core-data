@@ -1,21 +1,16 @@
-import { Status, RD } from 'core-promises';
-import type { DeepPartial, NOmit, Primitive } from 'core';
+import type { DeepPartial, NOmit, StringKeys } from 'core';
+import { RD, Status } from 'core-promises';
 import { Entity, WithId, WithoutId } from '../entities';
-import type { DSO } from './data';
-
-export type DivideEntity<T> = {
-  [key in keyof T]: T[key] extends Primitive
-    ? T[key]
-    : string | undefined | T[key];
-};
+import type { DSO } from './dso';
 
 export type PRD<T> = Promise<RD<T, Status>>;
 
+export type Projection<T> = { [key in StringKeys<T>]: boolean | 0 | 1 };
+type Test = Projection<{_id: string; data:{bourg:number}}>
 export type DP<T> = DeepPartial<T>;
 
 export type WI<T> = WithId<DP<T>>;
 export type WO<T> = WithoutId<DP<T>>;
-export type DWO<T> = DivideEntity<WO<T>>;
 
 export type PRDI<T> = PRD<WI<T>>;
 export type PRDIM<T> = PRD<WI<T>[]>;
@@ -36,9 +31,10 @@ export type QueryOptions = {
 export type CreateMany<T extends Entity> = (args: {
   data: WO<T>[];
   options?: QueryOptions;
+  projection?: Projection<T>;
 }) => PRD<{
   all: number;
-  done: number;
+  createds: number;
   ids: string[];
 }>;
 

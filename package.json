@@ -53,8 +53,8 @@
     "zod": "^3.10.1"
   },
   "peerDependencies": {
-    "zod": "^3.10.1",
     "core": "https://github.com/chlbri/core.git#publish",
-    "core-promises": "https://github.com/chlbri/core-promises.git#publish"
+    "core-promises": "https://github.com/chlbri/core-promises.git#publish",
+    "zod": "^3.10.1"
   }
 }

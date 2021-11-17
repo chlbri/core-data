@@ -1,6 +1,7 @@
+import { AtomicObject } from '.';
 import { AtomicData, Entity, WithoutPermissions } from './entities';
-import { PERMISSIONS_STRINGS } from './schemas';
-import type { Not, OSO, VSO } from './types/data';
+import { entitySchema, PERMISSIONS_STRINGS } from './schemas';
+import type { Not, OSO, VSO } from './types/dso';
 
 export function isSearchOperation(val: any): val is VSO {
   return Object.keys(val).every(val => val.startsWith('$'));
@@ -9,8 +10,18 @@ export function isSearchOperation(val: any): val is VSO {
 export function isNotClause<T = any>(value: any): value is Not<T> {
   return Object.keys(value) === ['$not'];
 }
-export function isOSO<T = any>(value: any): value is OSO<T> {
-  return Object.keys(value) === ['$not'];
+
+export function includesMany<T>(array: T[], includes: T[]) {
+  return includes.every(include => array.includes(include));
+}
+
+export function isEntity(value: any): value is Entity {
+  return entitySchema.safeParse(value).success;
+}
+
+export function getPermissions<T extends Entity>(data: AtomicObject<T>) {
+  const entries = Object.entries(data);
+
 }
 
 //TODO: Add a better way to exit with false
@@ -18,7 +29,7 @@ export function isWithoutPermissions(
   val: any,
 ): val is WithoutPermissions<any> {
   return Object.keys(val).every(
-    key => !(PERMISSIONS_STRINGS as readonly string[]).includes(key),
+    key => !PERMISSIONS_STRINGS.safeParse(key).success,
   );
 }
 
