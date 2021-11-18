@@ -1,4 +1,4 @@
-import { entitySchema, permissionsSchema } from './schemas/objects';
+import { collectionPermissionsShape, entitySchema, permissionsShape } from './schemas/objects';
 import { object, TypeOf } from 'zod';
 
 export type Entity = TypeOf<typeof entitySchema>;
@@ -6,11 +6,14 @@ export type WithoutId<T> = Omit<T, '_id'>;
 
 export type WithId<T> = WithoutId<T> & { _id: string };
 
-const perm = object(permissionsSchema);
+const perm = object(permissionsShape);
+const colPerm = object(collectionPermissionsShape);
 
 export type AtomicData<T> = {
   data: T;
 } & TypeOf<typeof perm>;
+
+export type CollectionPermissions = TypeOf<typeof colPerm>;
 
 export type AtomicObject<T extends Entity> = {
   [key in keyof WithoutId<T>]: AtomicData<T[key]>;

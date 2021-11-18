@@ -14,16 +14,22 @@ import {
 
 // #region Configuration
 // #region permissions
-export const permissionsSchema = {
+export const permissionsShape = {
   __read: array(string()),
   __write: array(string()),
-  __delete: array(string()),
+  __remove: array(string()),
 };
+
+export const collectionPermissionsShape = {
+  __create: array(string()),
+  ...permissionsShape
+};
+
 
 const perimissionsBools = {
   __read: true,
   __write: true,
-  __delete: true,
+  __remove: true,
 } as const;
 // #endregion
 // #endregion
@@ -88,7 +94,7 @@ export const atomicDataSchema = <T extends ZodRawShape | ZodType<any>>(
 
   return object({
     data,
-    ...permissionsSchema,
+    ...permissionsShape,
   });
 };
 // #endregion

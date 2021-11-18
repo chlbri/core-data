@@ -1,8 +1,10 @@
+import { object } from 'zod';
 import {
   PermissionsForEntity,
-  PermissionsReader,
+  PermissionsReaderMany,
+  PermissionsReaderOne,
 } from './../types/permission';
-import { Entity } from './../entities';
+import { Entity, WithId } from './../entities';
 import {
   Count,
   CountAll,
@@ -14,6 +16,7 @@ import {
   DeleteManyByIds,
   DeleteOne,
   DeleteOneById,
+  DP,
   ReadAll,
   ReadMany,
   ReadManyByIds,
@@ -41,11 +44,15 @@ import {
   UpdateOneById,
   UpsertMany,
   UpsertOne,
+  WI,
 } from '../types/crud';
 import deepEquals from 'fast-deep-equal';
 import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import { isNotClause } from '../functions';
-import { AtomicObject } from '..';
+import { AtomicObject, CollectionPermissions, getPermissions } from '..';
+import { nanoid } from 'nanoid';
+import { ReturnData } from 'core-promises';
+import { isNullish } from 'core';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -221,51 +228,284 @@ export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
 }
 
 type Permission<T extends Entity> = {
-  permissionReader: PermissionsReader<T>;
+  permissionReader: PermissionsReaderOne<T>;
 };
 
-
-
-export default class ArrayDB<T extends Entity> implements CRUD<T> {
+export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   /* , Permission<T> */
-  constructor(private _db: AtomicObject<T>[], private col?: string) {}
-  readonly permissionReader: PermissionsReader<T> = dso => {
-    this._db.filter(inStreamSearchAdapter(dso)).map(data => data);
+  constructor(
+    private _db: WI<T>[],
+    private permissions: CollectionPermissions,
+  ) {}
+
+  // readonly permissionReaderMany: PermissionsReaderMany<T> = dso => {
+  //   const datas = this._db.filter(inStreamSearchAdapter(dso));
+  //   const out = datas.map(getPermissions);
+  //   return out;
+  // };
+  // readonly permissionReaderOne: PermissionsReaderOne<T> = dso =>
+  //   this.permissionReaderMany(dso)[0];
+
+  createMany: CreateMany<T> = async ({ data: datas, options }) => {
+    const inputs = datas.map(data => ({
+      _id: nanoid(),
+      ...data,
+    })) as WI<T>[];
+    if (options && options.limit && options.limit < datas.length) {
+      const limit = options.limit;
+      const _inputs = inputs.slice(0, limit);
+      this._db.push(..._inputs);
+      const payload = _inputs.map(input => input._id);
+      const message = 'Limit exceeded';
+      const rd = new ReturnData({ status: 110, payload, message });
+      return rd;
+    }
+
+    this._db.push(...inputs);
+    const payload = inputs.map(input => input._id) as string[];
+    const rd = new ReturnData({ status: 210, payload });
+    return rd;
   };
-  createMany: CreateMany<T>;
-  createOne: CreateOne<T>;
-  upsertOne: UpsertOne<T>;
-  upsertMany: UpsertMany<T>;
-  readAll: ReadAll<T>;
-  readMany: ReadMany<T>;
-  readManyByIds: ReadManyByIds<T>;
-  readOne: ReadOne<T>;
-  readOneById: ReadOneById<T>;
-  countAll: CountAll;
-  count: Count<T>;
-  updateAll: UpdateAll<T>;
-  updateMany: UpdateMany<T>;
-  updateManyByIds: UpdateManyByIds<T>;
-  updateOne: UpdateOne<T>;
-  updateOneById: UpdateOneById<T>;
-  setAll: SetAll<T>;
-  setMany: SetMany<T>;
-  setManyByIds: SetManyByIds<T>;
-  setOne: SetOne<T>;
-  setOneById: SetOneById<T>;
-  deleteAll: DeleteAll;
-  deleteMany: DeleteMany<T>;
-  deleteManyByIds: DeleteManyByIds<T>;
-  deleteOne: DeleteOne<T>;
-  deleteOneById: DeleteOneById<T>;
-  removeAll: RemoveAll;
-  removeMany: RemoveMany<T>;
-  removeManyByIds: RemoveManyByIds<T>;
-  removeOne: RemoveOne<T>;
-  removeOneById: RemoveOneById<T>;
-  retrieveAll: RetrieveAll;
-  retrieveMany: RetrieveMany<T>;
-  retrieveManyByIds: RetrieveManyByIds<T>;
-  retrieveOne: RetrieveOne<T>;
-  retrieveOneById: RetrieveOneById<T>;
+  createOne: CreateOne<T> = async ({ data }) => {
+    const input = {
+      _id: nanoid(),
+      ...data,
+    } as WI<T>;
+
+    this._db.push(input);
+    const payload = input._id;
+    const rd = new ReturnData({ status: 211, payload });
+    return rd;
+  };
+  upsertOne: UpsertOne<T> = async ({ _id, data }) => {
+    const _filter = inStreamSearchAdapter({ _id, ...data } as any);
+    const _exist = this._db.find(_filter);
+    if (_exist) {
+      const message = 'Already exists';
+      return new ReturnData({ status: 312, payload: _id, message });
+    } else {
+      this._db.push({ _id: _id ?? nanoid(), ...data });
+      return new ReturnData({ status: 212, payload: _id });
+    }
+  };
+
+  upsertMany: UpsertMany<T> = async ({ upserts, options }) => {
+    const inputs = upserts.map(({ _id, data }) => ({
+      _id: _id ?? nanoid(),
+      ...data,
+    })) as WI<T>[];
+    const alreadyExists: string[] = [];
+    if (options && options.limit && options.limit < upserts.length) {
+      const limit = options.limit;
+      const _inputs = inputs.slice(0, limit).map(input => {
+        const _filter = inStreamSearchAdapter(input as any);
+        const _exist = this._db.find(_filter)?._id;
+        if (_exist) {
+          alreadyExists.push(_exist);
+        } else {
+          this._db.push(input);
+        }
+        return input;
+      });
+      if (alreadyExists.length > 0) {
+        return new ReturnData({
+          status: 313,
+          payload: _inputs.map(input => input._id),
+          message: `${alreadyExists} already exist`,
+        });
+      } else {
+        return new ReturnData({
+          status: 113,
+          payload: _inputs.map(input => input._id),
+        });
+      }
+    }
+
+    const _inputs = inputs.map(input => {
+      const _filter = inStreamSearchAdapter(input as any);
+      const _exist = this._db.find(_filter)?._id;
+      if (_exist) {
+        alreadyExists.push(_exist);
+      } else {
+        this._db.push(input);
+      }
+      return input;
+    });
+    if (alreadyExists.length > 0) {
+      return new ReturnData({
+        status: 313,
+        payload: _inputs.map(input => input._id),
+        message: `${alreadyExists} already exist`,
+      });
+    } else {
+      return new ReturnData({
+        status: 213,
+        payload: _inputs.map(input => input._id),
+      });
+    }
+  };
+  readAll: ReadAll<T> = async options => {
+    const out = this._db.slice(0, options?.limit);
+    if (!out.length) {
+      return new ReturnData({
+        status: 514,
+        message: 'Empty',
+      });
+    }
+    return new ReturnData({
+      status: 214,
+      payload: this._db.slice(0, options?.limit),
+    });
+  };
+  readMany: ReadMany<T> = async ({ filters, options }) => {
+    const reads = this._db.filter(inStreamSearchAdapter(filters));
+    if (!reads.length) {
+      return new ReturnData({
+        status: 515,
+        message: 'Empty',
+      });
+    }
+    if (options && options.limit && options.limit < reads.length) {
+      const out = reads.slice(0, options?.limit);
+      if (!out.length) {
+        return new ReturnData({
+          status: 515,
+          message: 'Empty',
+        });
+      }
+      return new ReturnData({
+        status: 115,
+        payload: out,
+        message: 'Limit exceeded',
+      });
+    }
+
+    return new ReturnData({
+      status: 215,
+      payload: reads,
+    });
+  };
+
+  readManyByIds: ReadManyByIds<T> = async ({ ids, filters, options }) => {
+    const reads1 = this._db.filter(data => ids.includes(data._id));
+    if (!reads1.length) {
+      return new ReturnData({
+        status: 516,
+        message: 'Empty',
+      });
+    }
+    if (!filters) {
+      if (options && options.limit && options.limit < reads1.length) {
+        const out = reads1.slice(0, options?.limit);
+        if (!out.length) {
+          return new ReturnData({
+            status: 516,
+            message: 'Empty',
+          });
+        }
+        return new ReturnData({
+          status: 116,
+          payload: out,
+          message: 'Limit exceeded',
+        });
+      } else {
+        return new ReturnData({
+          status: 216,
+          payload: reads1,
+        });
+      }
+    }
+    const reads2 = reads1.filter(inStreamSearchAdapter(filters));
+    if (!reads2.length) {
+      return new ReturnData({
+        status: 516,
+        message: 'Empty',
+      });
+    }
+    if (options && options.limit && options.limit < reads2.length) {
+      return new ReturnData({
+        status: 316,
+        payload: reads2.slice(0, options?.limit),
+        message: 'Limit exceeded',
+      });
+    }
+    return new ReturnData({
+      status: 216,
+      payload: reads1,
+    });
+  };
+
+  readOne: ReadOne<T> = async ({ filters }) => {
+    const payload = this._db.find(inStreamSearchAdapter(filters));
+    if (payload) {
+      return new ReturnData({ status: 217, payload });
+    }
+    return new ReturnData({ status: 517, message: 'NotFound' });
+  };
+
+  readOneById: ReadOneById<T> = async ({ _id, filters }) => {
+    const exits1 = this._db.find(data => data._id === _id);
+    if (!filters) {
+      if (!exits1) {
+        return new ReturnData({ status: 518, message: 'Not Found' });
+      } else return new ReturnData({ status: 218, payload: exits1 });
+    }
+    const exists2 = this._db
+      .filter(data => data._id === _id)
+      .find(inStreamSearchAdapter(filters));
+
+    if (!exists2) {
+      return new ReturnData({ status: 518, message: 'Not found ' });
+    }
+    return new ReturnData({ status: 218, payload: exists2 });
+  };
+  countAll: CountAll = async () => {
+    const out = this._db.length;
+    if (out <= 0) {
+      return new ReturnData({ status: 519, message: 'Empty' });
+    }
+    return new ReturnData({ status: 219, payload: this._db.length });
+  };
+
+  count: Count<T> = async ({ filters, options }) => {
+    const payload = this._db.filter(inStreamSearchAdapter(filters)).length;
+    if (payload <= 0) {
+      return new ReturnData({ status: 520, message: 'Empty' });
+    }
+    const limit = options?.limit;
+    if (limit && limit < payload) {
+      return new ReturnData({
+        status: 120,
+        payload: limit,
+        message: 'Limit exceeded',
+      });
+    }
+    return new ReturnData({ status: 220, payload });
+  };
+
+  /*TODO*/ updateAll: UpdateAll<T>;
+  /*TODO*/ updateMany: UpdateMany<T>;
+  /*TODO*/ updateManyByIds: UpdateManyByIds<T>;
+  /*TODO*/ updateOne: UpdateOne<T>;
+  /*TODO*/ updateOneById: UpdateOneById<T>;
+  /*TODO*/ setAll: SetAll<T>;
+  /*TODO*/ setMany: SetMany<T>;
+  /*TODO*/ setManyByIds: SetManyByIds<T>;
+  /*TODO*/ setOne: SetOne<T>;
+  /*TODO*/ setOneById: SetOneById<T>;
+  /*TODO*/ deleteAll: DeleteAll;
+  /*TODO*/ deleteMany: DeleteMany<T>;
+  /*TODO*/ deleteManyByIds: DeleteManyByIds<T>;
+  /*TODO*/ deleteOne: DeleteOne<T>;
+  /*TODO*/ deleteOneById: DeleteOneById<T>;
+  /*TODO*/ removeAll: RemoveAll;
+  /*TODO*/ removeMany: RemoveMany<T>;
+  /*TODO*/ removeManyByIds: RemoveManyByIds<T>;
+  /*TODO*/ removeOne: RemoveOne<T>;
+  /*TODO*/ removeOneById: RemoveOneById<T>;
+  /*TODO*/ retrieveAll: RetrieveAll;
+  /*TODO*/ retrieveMany: RetrieveMany<T>;
+  /*TODO*/ retrieveManyByIds: RetrieveManyByIds<T>;
+  /*TODO*/ retrieveOne: RetrieveOne<T>;
+  /*TODO*/ retrieveOneById: RetrieveOneById<T>;
 }

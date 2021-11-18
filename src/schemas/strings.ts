@@ -10,9 +10,9 @@ export const STATUS_STRINGS = [
 ] as const;
 
 export const PERMISSIONS_STRINGS = tuple([
-  literal('_read'),
-  literal('_write'),
-  literal('_remove'),
+  literal('__read'),
+  literal('__write'),
+  literal('__remove'),
 ]) ;
 
 export const EXIST_CLAUSES = literal('$exists');

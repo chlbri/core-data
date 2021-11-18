@@ -22,9 +22,13 @@ export type PermissionsForEntity<T extends Entity> = {
     : { [key in _Keys]: string[] };
 };
 
-export type PermissionsReader<T extends Entity> = (
+export type PermissionsReaderOne<T extends Entity> = (
   filters: DSO<T>,
 ) => PermissionsForEntity<T>;
+
+export type PermissionsReaderMany<T extends Entity> = (
+  filters: DSO<T>,
+) => PermissionsForEntity<T>[];
 
 type Test = PermissionsForEntity<
   {
@@ -35,12 +39,12 @@ type Test = PermissionsForEntity<
 
 const test1: Test = {
   data: {
-    _createdAt: { _read: [], _write: [], _remove: [] },
-    _deletedAt: { _read: [], _write: [], _remove: [] },
-    _updatedAt: { _read: [], _write: [], _remove: [] },
-    bourg: { _read: [], _write: [], _remove: [] },
+    _createdAt: { __read: [], __write: [], __remove: [] },
+    _deletedAt: { __read: [], __write: [], __remove: [] },
+    _updatedAt: { __read: [], __write: [], __remove: [] },
+    bourg: { __read: [], __write: [], __remove: [] },
   },
-  _createdAt: { _read: [], _write: [], _remove: [] },
-  _updatedAt: { _read: [], _write: [], _remove: [] },
-  _deletedAt: { _read: [], _write: [], _remove: [] },
+  _createdAt: { __read: [], __write: [], __remove: [] },
+  _updatedAt: { __read: [], __write: [], __remove: [] },
+  _deletedAt: { __read: [], __write: [], __remove: [] },
 };
