@@ -1,6 +1,6 @@
 import { syncTest } from 'core-test';
-import { SearchOperation } from '../types/dso';
-import { inStreamSearchAdapterKey } from './arrayDB';
+import { SearchOperation } from '../src/types/dso';
+import { inStreamSearchAdapterKey } from '../src/adapters/arrayDB';
 // #region Object
 
 describe('$exists - true clause', () => {

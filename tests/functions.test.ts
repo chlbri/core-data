@@ -1,4 +1,4 @@
-import { getPermissions } from './functions';
+import { getPermissions } from '../src/functions';
 import { dequal } from 'dequal/lite';
 
 const obj = {

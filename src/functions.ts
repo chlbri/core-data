@@ -1,9 +1,9 @@
-import { permissionsShape } from './schemas/objects';
+import { object, record } from 'zod';
 import { AtomicObject } from '.';
 import { AtomicData, Entity, WithoutPermissions } from './entities';
 import { entitySchema, PERMISSIONS_STRINGS } from './schemas';
-import type { Not, OSO, VSO } from './types/dso';
-import { object, record } from 'zod';
+import { permissionsShape } from './schemas/objects';
+import type { Not, VSO } from './types/dso';
 import { PermissionsForEntity } from './types/permission';
 
 export function isSearchOperation(val: any): val is VSO {

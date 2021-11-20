@@ -1,0 +1,17 @@
+import { AtomicObject } from '.';
+import { AtomicData, Entity, WithoutPermissions } from './entities';
+import type { Not, VSO } from './types/dso';
+import { PermissionsForEntity } from './types/permission';
+export declare function isSearchOperation(val: any): val is VSO;
+export declare function isNotClause<T = any>(value: any): value is Not<T>;
+export declare function includesMany<T>(array: T[], includes: T[]): boolean;
+export declare function isEntity(value: any): value is Entity;
+export declare function isAtomicData<T>(value: any): value is AtomicData<T>;
+export declare function isAtomicObject<T extends Entity>(value: any): value is AtomicObject<T>;
+export declare function getPermissions<T extends Entity>(data: AtomicObject<T>): PermissionsForEntity<T>;
+export declare function getPermissionsArray<T extends Entity>(data: AtomicObject<T>[]): PermissionsForEntity<T>[];
+export declare function isWithoutPermissions(val: any): val is WithoutPermissions<any>;
+declare type AD<T> = AtomicData<T>;
+export declare function atomicData<T>(data: T, __read: AD<T>['__read'], __write: AD<T>['__write'], __remove: AD<T>['__remove']): AD<T>;
+export declare function entity<T>(_id: string, shape: T): Entity;
+export {};
