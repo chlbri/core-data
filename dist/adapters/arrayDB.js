@@ -4,6 +4,7 @@ exports.ArrayCRUD_DB = exports.inStreamSearchAdapter = exports.inStreamSearchAda
 const core_promises_1 = require("core-promises");
 const lite_1 = require("dequal/lite");
 const nanoid_1 = require("nanoid");
+const immer_1 = require("immer");
 const functions_1 = require("../functions");
 function inStreamSearchAdapterKey(op) {
     // if (!op) return () => true;
@@ -157,6 +158,19 @@ class ArrayCRUD_DB {
     constructor(_db, permissions) {
         this._db = _db;
         this.permissions = permissions;
+        this.__update = (payload, update) => {
+            const __db = (0, immer_1.produce)([...this._db], draft => {
+                payload.forEach(id => {
+                    const index = draft.findIndex((data) => data._id === id);
+                    if (index !== -1) {
+                        draft[index].login = update.login;
+                    }
+                });
+            });
+            this.rinitDB();
+            this._db.push(...__db);
+            this._db; //?
+        };
         // readonly permissionReaderMany: PermissionsReaderMany<T> = dso => {
         //   const datas = this._db.filter(inStreamSearchAdapter(dso));
         //   const out = datas.map(getPermissions);
@@ -406,14 +420,113 @@ class ArrayCRUD_DB {
             return new core_promises_1.ReturnData({ status: 220, payload });
         };
         // #endregion
-        this.updateAll = async () => {
-            throw undefined;
+        this.updateAll = async ({ data, options }) => {
+            const db = [...this._db];
+            if (!db.length) {
+                return new core_promises_1.ReturnData({ status: 521, message: 'DB is empty' });
+            }
+            const limit = options === null || options === void 0 ? void 0 : options.limit;
+            const inputs = db
+                .slice(0, limit)
+                .map(_data => ({ ..._data, ...data }));
+            if (limit && limit < db.length) {
+                this._db.length = 0;
+                this._db.push(...inputs);
+                return new core_promises_1.ReturnData({
+                    status: 121,
+                    payload: inputs.map(input => input._id),
+                    message: 'Options limit exceeded',
+                });
+            }
+            return new core_promises_1.ReturnData({
+                status: 221,
+                payload: inputs.map(input => input._id),
+            });
         };
-        this.updateMany = async () => {
-            throw undefined;
+        this.updateMany = async ({ filters, data, options }) => {
+            const db = [...this._db];
+            if (!db.length) {
+                return new core_promises_1.ReturnData({ status: 522, message: 'DB is empty' });
+            }
+            const _filter = inStreamSearchAdapter(filters);
+            const limit = options === null || options === void 0 ? void 0 : options.limit;
+            const inputs = db.filter(_filter);
+            const payload = inputs.slice(0, limit).map(input => input._id);
+            if (!inputs.length) {
+                return new core_promises_1.ReturnData({ status: 522, message: 'Filters get empty' });
+            }
+            if (limit && limit < inputs.length) {
+                this.__update(payload /*?*/, data);
+                return new core_promises_1.ReturnData({
+                    status: 122,
+                    payload,
+                    message: 'Options limit exceeded',
+                });
+            }
+            return new core_promises_1.ReturnData({
+                status: 222,
+                payload,
+            });
         };
-        this.updateManyByIds = async () => {
-            throw undefined;
+        this.updateManyByIds = async ({ ids, filters, data, options, }) => {
+            const db = [...this._db];
+            if (!db.length) {
+                return new core_promises_1.ReturnData({ status: 523, message: 'DB is empty' });
+            }
+            const limit = options === null || options === void 0 ? void 0 : options.limit;
+            // const mapper = (_data: WI<T>) => ({ ..._data, ...data });
+            const inputs1 = db.filter(data => ids.includes(data._id));
+            if (!inputs1.length) {
+                return new core_promises_1.ReturnData({
+                    status: 523,
+                    message: 'ids cannot reach DB',
+                });
+            }
+            if (!filters) {
+                const payload = inputs1.slice(0, limit).map(input => input._id);
+                this.__update(payload, data);
+                this._db; //?
+                if (limit && limit < inputs1.length) {
+                    return new core_promises_1.ReturnData({
+                        status: 123,
+                        payload,
+                        message: 'Options limit exceeded',
+                    });
+                }
+                return new core_promises_1.ReturnData({
+                    status: 223,
+                    payload,
+                });
+            }
+            const _filter = inStreamSearchAdapter(filters);
+            const inputs2 = inputs1.filter(_filter);
+            inputs2.length; //?
+            const payload = inputs2.slice(0, limit).map(input => input._id);
+            this.__update(payload, data);
+            if (!inputs2.length) {
+                return new core_promises_1.ReturnData({
+                    status: 523,
+                    message: 'Empty',
+                });
+            }
+            if (limit && limit < inputs2.length) {
+                return new core_promises_1.ReturnData({
+                    status: 123,
+                    payload,
+                    message: 'Options limit exceeded',
+                });
+            }
+            if (inputs2.length < inputs1.length) {
+                return new core_promises_1.ReturnData({
+                    status: 323,
+                    payload,
+                    message: 'Fillers reduce the data',
+                });
+            }
+            return new core_promises_1.ReturnData({
+                status: 223,
+                payload,
+            });
         };
         this.updateOne = async () => {
             throw undefined;

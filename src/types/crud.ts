@@ -96,7 +96,7 @@ export type Count<T extends Entity> = (args: {
 // #region Update
 
 export type UpdateAll<T extends Entity> = (args: {
-  data: WO<T>;
+  data: Omit<WO<T>, '_updatedAt'>;
   options?: QueryOptions;
 }) => PRD<string[]>;
 

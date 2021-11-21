@@ -1,13 +1,14 @@
 import { CollectionPermissions } from '../entities';
-import { Count, CountAll, CreateMany, CreateOne, CRUD, DeleteAll, DeleteMany, DeleteManyByIds, DeleteOne, DeleteOneById, ReadAll, ReadMany, ReadManyByIds, ReadOne, ReadOneById, RemoveAll, RemoveMany, RemoveManyByIds, RemoveOne, RemoveOneById, RetrieveAll, RetrieveMany, RetrieveManyByIds, RetrieveOne, RetrieveOneById, SetAll, SetMany, SetManyByIds, SetOne, SetOneById, UpdateAll, UpdateMany, UpdateManyByIds, UpdateOne, UpdateOneById, UpsertMany, UpsertOne, WI } from '../types/crud';
+import { Count, CountAll, CreateMany, CreateOne, CRUD, DeleteAll, DeleteMany, DeleteManyByIds, DeleteOne, DeleteOneById, ReadAll, ReadMany, ReadManyByIds, ReadOne, ReadOneById, RemoveAll, RemoveMany, RemoveManyByIds, RemoveOne, RemoveOneById, RetrieveAll, RetrieveMany, RetrieveManyByIds, RetrieveOne, RetrieveOneById, SetAll, SetMany, SetManyByIds, SetOne, SetOneById, UpdateAll, UpdateMany, UpdateManyByIds, UpdateOne, UpdateOneById, UpsertMany, UpsertOne, WI, WO } from '../types/crud';
 import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import { Entity } from './../entities';
 export declare function inStreamSearchAdapterKey<T>(op: SearchOperation<T>): (arg: T) => boolean;
-export declare function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>): (arg: any) => boolean;
+export declare function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>): (val: any) => boolean;
 export declare class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     private _db;
     private permissions;
     constructor(_db: WI<T>[], permissions: CollectionPermissions);
+    __update: (payload: string[], update: WO<T>) => void;
     rinitDB(): void;
     get length(): number;
     createMany: CreateMany<T>;

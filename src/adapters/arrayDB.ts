@@ -2,6 +2,7 @@ import { ReturnData } from 'core-promises';
 import { dequal } from 'dequal/lite';
 import { nanoid } from 'nanoid';
 import { CollectionPermissions } from '../entities';
+import { produce } from 'immer';
 import { isNotClause } from '../functions';
 import {
   Count,
@@ -42,6 +43,7 @@ import {
   UpsertMany,
   UpsertOne,
   WI,
+  WO,
 } from '../types/crud';
 import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import { Entity } from './../entities';
@@ -178,7 +180,9 @@ export function inStreamSearchAdapterKey<T>(
   return resolver;
 }
 
-export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
+export function inStreamSearchAdapter<T>(
+  filter: DataSearchOperations<T>,
+): (val: any) => boolean {
   const funcs: ((arg: T) => boolean)[] = [];
 
   if (isNotClause(filter)) {
@@ -227,6 +231,20 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     private _db: WI<T>[],
     private permissions: CollectionPermissions,
   ) {}
+
+  __update = (payload: string[], update: WO<T>) => {
+    const __db = produce([...this._db], draft => {
+      payload.forEach(id => {
+        const index = draft.findIndex((data: any) => data._id === id);
+        if (index !== -1) {
+          (draft[index] as any).login = (update as any).login;
+        }
+      });
+    });
+    this.rinitDB();
+    this._db.push(...__db);
+    this._db; //?
+  };
 
   rinitDB() {
     this._db.length = 0;
@@ -497,14 +515,131 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
 
   // #endregion
 
-  updateAll: UpdateAll<T> = async () => {
-    throw undefined;
+  updateAll: UpdateAll<T> = async ({ data, options }) => {
+    const db = [...this._db];
+    if (!db.length) {
+      return new ReturnData({ status: 521, message: 'DB is empty' });
+    }
+    const limit = options?.limit;
+    const inputs = db
+      .slice(0, limit)
+      .map(_data => ({ ..._data, ...data }));
+    if (limit && limit < db.length) {
+      this._db.length = 0;
+      this._db.push(...inputs);
+      return new ReturnData({
+        status: 121,
+        payload: inputs.map(input => input._id),
+        message: 'Options limit exceeded',
+      });
+    }
+    return new ReturnData({
+      status: 221,
+      payload: inputs.map(input => input._id),
+    });
   };
-  updateMany: UpdateMany<T> = async () => {
-    throw undefined;
+
+  updateMany: UpdateMany<T> = async ({ filters, data, options }) => {
+    const db = [...this._db];
+    if (!db.length) {
+      return new ReturnData({ status: 522, message: 'DB is empty' });
+    }
+
+    const _filter = inStreamSearchAdapter(filters);
+    const limit = options?.limit;
+    const inputs = db.filter(_filter);
+
+    const payload = inputs.slice(0, limit).map(input => input._id);
+    if (!inputs.length) {
+      return new ReturnData({ status: 522, message: 'Filters get empty' });
+    }
+
+    if (limit && limit < inputs.length) {
+      this.__update(payload /*?*/, data);
+      return new ReturnData({
+        status: 122,
+        payload,
+        message: 'Options limit exceeded',
+      });
+    }
+    return new ReturnData({
+      status: 222,
+      payload,
+    });
   };
-  updateManyByIds: UpdateManyByIds<T> = async () => {
-    throw undefined;
+
+  updateManyByIds: UpdateManyByIds<T> = async ({
+    ids,
+    filters,
+    data,
+    options,
+  }) => {
+    const db = [...this._db];
+    if (!db.length) {
+      return new ReturnData({ status: 523, message: 'DB is empty' });
+    }
+    const limit = options?.limit;
+
+    // const mapper = (_data: WI<T>) => ({ ..._data, ...data });
+
+    const inputs1 = db.filter(data => ids.includes(data._id));
+
+    if (!inputs1.length) {
+      return new ReturnData({
+        status: 523,
+        message: 'ids cannot reach DB',
+      });
+    }
+    if (!filters) {
+      const payload = inputs1.slice(0, limit).map(input => input._id);
+
+      this.__update(payload, data);
+      this._db; //?
+      if (limit && limit < inputs1.length) {
+        return new ReturnData({
+          status: 123,
+          payload,
+          message: 'Options limit exceeded',
+        });
+      }
+      return new ReturnData({
+        status: 223,
+        payload,
+      });
+    }
+    const _filter = inStreamSearchAdapter(filters);
+    const inputs2 = inputs1.filter(_filter);
+    inputs2.length; //?
+    const payload = inputs2.slice(0, limit).map(input => input._id);
+
+    this.__update(payload, data);
+
+    if (!inputs2.length) {
+      return new ReturnData({
+        status: 523,
+        message: 'Empty',
+      });
+    }
+    if (limit && limit < inputs2.length) {
+      return new ReturnData({
+        status: 123,
+        payload,
+        message: 'Options limit exceeded',
+      });
+    }
+
+    if (inputs2.length < inputs1.length) {
+      return new ReturnData({
+        status: 323,
+        payload,
+        message: 'Fillers reduce the data',
+      });
+    }
+
+    return new ReturnData({
+      status: 223,
+      payload,
+    });
   };
   updateOne: UpdateOne<T> = async () => {
     throw undefined;

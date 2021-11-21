@@ -64,7 +64,7 @@ export declare type Count<T extends Entity> = (args: {
     options?: QueryOptions;
 }) => PRD<number>;
 export declare type UpdateAll<T extends Entity> = (args: {
-    data: WO<T>;
+    data: Omit<WO<T>, '_updatedAt'>;
     options?: QueryOptions;
 }) => PRD<string[]>;
 export declare type UpdateMany<T extends Entity> = (args: {
