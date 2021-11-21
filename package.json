@@ -11,10 +11,11 @@
   "scripts": {
     "tsc": "tsc",
     "build": "pnpm run test && pnpm run tsc && pnpm run lint",
+    "build:-test": "pnpm run tsc && pnpm run lint",
     "test": "jest",
     "prettier": "prettier --write \"src/**/*.{ts,tsx}\"",
     "eslint": "eslint \"{src/**/*,App}.{ts,tsx,yml,json}\"",
-    "lint": "pnpm run prettier && pnpm run eslint --fix",
+    "lint": "pnpm run prettier && pnpm run eslint -- --fix",
     "rm": "./node_modules/.bin/rimraf -rf node_modules pnpm.lock",
     "rinit": "pnpm run rm && pnpm run pnpm",
     "publish": "pnpm run rm && pnpm run clean && pnpm run pnpm",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@types/faker": "^5.5.9",
     "@types/jest": "^27.0.2",
+    "@types/object.omit": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "^5.1.0",
     "@typescript-eslint/parser": "^5.1.0",
     "core": "https://github.com/chlbri/core.git#publish",
@@ -55,5 +57,8 @@
     "core": "https://github.com/chlbri/core.git#publish",
     "core-promises": "https://github.com/chlbri/core-promises.git#publish",
     "zod": "^3.10.1"
+  },
+  "dependencies": {
+    "object.omit": "^3.0.0"
   }
 }

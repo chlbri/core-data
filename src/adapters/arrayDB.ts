@@ -45,7 +45,6 @@ import {
 } from '../types/crud';
 import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import { Entity } from './../entities';
-import { PermissionsReaderOne } from './../types/permission';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -218,9 +217,9 @@ export function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>) {
   return resolver;
 }
 
-type Permission<T extends Entity> = {
-  permissionReader: PermissionsReaderOne<T>;
-};
+// type Permission<T extends Entity> = {
+//   permissionReader: PermissionsReaderOne<T>;
+// };
 
 export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   /* , Permission<T> */

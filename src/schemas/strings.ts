@@ -13,7 +13,7 @@ export const PERMISSIONS_STRINGS = tuple([
   literal('__read'),
   literal('__write'),
   literal('__remove'),
-]) ;
+]);
 
 export const EXIST_CLAUSES = literal('$exists');
 

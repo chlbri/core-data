@@ -1,7 +1,7 @@
-import { WithoutId } from './../entities';
-import { StringKeyAndValues, StringKeys, UnionToIntersection } from 'core';
+import { StringKeyAndValues, UnionToIntersection } from 'core';
 import { TypeOf } from 'zod';
 import { Entity } from '../entities';
+import { WithoutId } from './../entities';
 import { PERMISSIONS_STRINGS } from './../schemas/strings';
 import { DSO } from './dso';
 
@@ -29,22 +29,3 @@ export type PermissionsReaderOne<T extends Entity> = (
 export type PermissionsReaderMany<T extends Entity> = (
   filters: DSO<T>,
 ) => PermissionsForEntity<T>[];
-
-type Test = PermissionsForEntity<
-  {
-    _id: string;
-    data: Entity & { bourg: number };
-  } & Entity
->;
-
-const test1: Test = {
-  data: {
-    _createdAt: { __read: [], __write: [], __remove: [] },
-    _deletedAt: { __read: [], __write: [], __remove: [] },
-    _updatedAt: { __read: [], __write: [], __remove: [] },
-    bourg: { __read: [], __write: [], __remove: [] },
-  },
-  _createdAt: { __read: [], __write: [], __remove: [] },
-  _updatedAt: { __read: [], __write: [], __remove: [] },
-  _deletedAt: { __read: [], __write: [], __remove: [] },
-};

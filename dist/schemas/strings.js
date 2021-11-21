@@ -11,11 +11,11 @@ exports.STATUS_STRINGS = [
     'permission-error',
     'timeout-error',
 ];
-exports.PERMISSIONS_STRINGS = [
-    '_read',
-    '_update',
-    '_delete',
-];
+exports.PERMISSIONS_STRINGS = (0, zod_1.tuple)([
+    (0, zod_1.literal)('__read'),
+    (0, zod_1.literal)('__write'),
+    (0, zod_1.literal)('__remove'),
+]);
 exports.EXIST_CLAUSES = (0, zod_1.literal)('$exists');
 exports.COMMON_CLAUSES = (0, zod_1.tuple)([
     (0, zod_1.literal)('$eq'),
@@ -49,12 +49,13 @@ exports.LOGICAL_CLAUSES = (0, zod_1.tuple)([
 ]);
 exports.TYPE_ALIASES = (0, zod_1.tuple)([
     (0, zod_1.literal)('string'),
-    (0, zod_1.literal)('double'),
+    (0, zod_1.literal)('number'),
     (0, zod_1.literal)('object'),
     (0, zod_1.literal)('array'),
     (0, zod_1.literal)('binData'),
     (0, zod_1.literal)('objectId'),
-    (0, zod_1.literal)('bool'),
+    (0, zod_1.literal)('boolean'),
+    (0, zod_1.literal)('date'),
 ]);
 exports.CLAUSES = (0, zod_1.tuple)([
     exports.EXIST_CLAUSES,

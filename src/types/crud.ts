@@ -6,12 +6,12 @@ import type { DSO } from './dso';
 export type PRD<T> = Promise<RD<T, Status>>;
 
 export type Projection<T> = { [key in StringKeys<T>]: boolean | 0 | 1 };
-type Test = Projection<{_id: string; data:{bourg:number}}>
+
 export type DP<T> = DeepPartial<T>;
 
 export type WI<T> = WithId<DP<T>>;
 export type WO<T> = WithoutId<DP<T>>;
-export type WT<T> = WithoutTimeStamps<T>
+export type WT<T> = WithoutTimeStamps<T>;
 
 export type PRDI<T> = PRD<WI<T>>;
 export type PRDIM<T> = PRD<WI<T>[]>;

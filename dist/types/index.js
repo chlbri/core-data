@@ -11,4 +11,4 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./crud"), exports);
-__exportStar(require("./data"), exports);
+__exportStar(require("./dso"), exports);

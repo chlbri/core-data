@@ -1,9 +1,9 @@
-import type { DeepPartial, NOmit, StringKeys } from 'core';
-import { PRD, RD, Status } from 'core-promises';
-import { WO, QueryOptions, Projection, PRDIM, PRDI } from '.';
-import { Entity, WithId, WithoutId } from '../entities';
-import type { DSO } from './dso';
+import type { NOmit } from 'core';
 import {} from 'core';
+import { PRD } from 'core-promises';
+import { PRDI, PRDIM, Projection, QueryOptions, WO } from '.';
+import { Entity } from '../entities';
+import type { DSO } from './dso';
 
 // #region Create
 

@@ -5,6 +5,7 @@ import { entitySchema, PERMISSIONS_STRINGS } from './schemas';
 import { permissionsShape } from './schemas/objects';
 import type { Not, VSO } from './types/dso';
 import { PermissionsForEntity } from './types/permission';
+import omit from 'object.omit';
 
 export function isSearchOperation(val: any): val is VSO {
   return Object.keys(val).every(val => val.startsWith('$'));
@@ -28,7 +29,7 @@ export function isAtomicData<T>(value: any): value is AtomicData<T> {
 export function isAtomicObject<T extends Entity>(
   value: any,
 ): value is AtomicObject<T> {
-  const { _id, ...input } = value;
+  const input = omit(value, '_id');
   const schema = record(object(permissionsShape));
   return schema.safeParse(input).success;
 }
