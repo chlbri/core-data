@@ -1,5 +1,5 @@
 {
-  "include": [ "src", "tests/mongoDB.test.ts", "tests/arrayDB.test.ts", "tests/functions.test.ts",],
+  "include": [ "src"],
   // "files": ["globals.d.ts"],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig.json to read more about this file */

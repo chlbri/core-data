@@ -1,10 +1,8 @@
-import { object } from 'zod';
-import {
-  PermissionsForEntity,
-  PermissionsReaderMany,
-  PermissionsReaderOne,
-} from './../types/permission';
-import { Entity, WithId } from './../entities';
+import { dequal } from 'dequal/lite';
+import { ReturnData } from 'core-promises';
+import { nanoid } from 'nanoid';
+import { CollectionPermissions } from '../entities';
+import { isNotClause } from '../functions';
 import {
   Count,
   CountAll,
@@ -15,9 +13,7 @@ import {
   DeleteMany,
   DeleteManyByIds,
   DeleteOne,
-  DeleteOneById,
-  DP,
-  ReadAll,
+  DeleteOneById, ReadAll,
   ReadMany,
   ReadManyByIds,
   ReadOne,
@@ -44,15 +40,13 @@ import {
   UpdateOneById,
   UpsertMany,
   UpsertOne,
-  WI,
+  WI
 } from '../types/crud';
-import deepEquals from 'fast-deep-equal';
 import type { DataSearchOperations, SearchOperation } from '../types/dso';
-import { isNotClause } from '../functions';
-import { AtomicObject, CollectionPermissions, getPermissions } from '..';
-import { nanoid } from 'nanoid';
-import { ReturnData } from 'core-promises';
-import { isNullish } from 'core';
+import { Entity } from './../entities';
+import {
+  PermissionsReaderOne
+} from './../types/permission';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -70,7 +64,7 @@ export function inStreamSearchAdapterKey<T>(
         typeof arg === 'undefined' ||
         Object.keys(keys) === Object.keys(arg)
       ) {
-        return deepEquals(op, arg);
+        return dequal(op, arg);
       }
       return inStreamSearchAdapter(op)(arg);
     };
@@ -87,16 +81,16 @@ export function inStreamSearchAdapterKey<T>(
           return value ? sw : !sw;
         };
       case '$eq':
-        return (arg: T) => deepEquals(arg, value);
+        return (arg: T) => dequal(arg, value);
       case '$ne':
-        return (arg: T) => !deepEquals(arg, value);
+        return (arg: T) => !dequal(arg, value);
       case '$in':
         return (arg: T) => {
-          return (value as any[]).some(val => deepEquals(arg, val));
+          return (value as any[]).some(val => dequal(arg, val));
         };
       case '$nin':
         return (arg: T) => {
-          return (value as any[]).every(val => !deepEquals(arg, val));
+          return (value as any[]).every(val => !dequal(arg, val));
         };
       // #endregion
 
@@ -128,11 +122,11 @@ export function inStreamSearchAdapterKey<T>(
       case '$all':
         return (arg: T) =>
           (arg as unknown as string[]).every(val =>
-            deepEquals(val, value),
+            dequal(val, value),
           );
       case '$em':
         return (arg: T) =>
-          (arg as unknown as string[]).some(val => deepEquals(val, value));
+          (arg as unknown as string[]).some(val => dequal(val, value));
       case '$size':
         return (arg: T) => (arg as unknown as string[]).length === value;
       // #endregion
