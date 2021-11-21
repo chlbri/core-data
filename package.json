@@ -16,15 +16,14 @@
     "eslint": "eslint \"{src/**/*,App}.{ts,tsx,yml,json}\"",
     "lint": "pnpm run prettier && pnpm run eslint --fix",
     "rm": "./node_modules/.bin/rimraf -rf node_modules pnpm.lock",
-    "rinit": "pnpm run rm && pnpm cache clean && pnpm run pnpm",
+    "rinit": "pnpm run rm && pnpm run pnpm",
     "publish": "pnpm run rm && pnpm run clean && pnpm run pnpm",
-    "clean": "pnpm cache clean",
     "pnpm": "pnpm install",
     "upgrade": "pnpm upgrade",
     "upgrade-internal": "pnpm upgrade core core-promises core-test",
     "git-push": "git push --follow-tags",
     "git-build-push": "pnpm install && pnpm build && pnpm run git-push",
-    "git-publish": "pnpm run git-build-push && git checkout publish && git merge main && pnpm run git-push && git checkout main"
+    "git-publish": "pnpm run git-build-push && git checkout main && git merge dev && pnpm run git-push && git checkout dev"
   },
   "devDependencies": {
     "@types/faker": "^5.5.9",

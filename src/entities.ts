@@ -1,10 +1,19 @@
-import { collectionPermissionsShape, entitySchema, permissionsShape } from './schemas/objects';
+import {
+  collectionPermissionsShape,
+  entitySchema,
+  permissionsShape,
+  timestampsSchema,
+} from './schemas/objects';
 import { object, TypeOf } from 'zod';
 
 export type Entity = TypeOf<typeof entitySchema>;
 export type WithoutId<T> = Omit<T, '_id'>;
 
 export type WithId<T> = WithoutId<T> & { _id: string };
+
+export type TimeStamps = TypeOf<typeof timestampsSchema>;
+
+export type WithoutTimeStamps<T> = Omit<T, keyof TimeStamps>;
 
 const perm = object(permissionsShape);
 const colPerm = object(collectionPermissionsShape);

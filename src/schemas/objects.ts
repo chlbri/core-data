@@ -22,9 +22,8 @@ export const permissionsShape = {
 
 export const collectionPermissionsShape = {
   __create: array(string()),
-  ...permissionsShape
+  ...permissionsShape,
 };
-
 
 const perimissionsBools = {
   __read: true,
@@ -34,11 +33,15 @@ const perimissionsBools = {
 // #endregion
 // #endregion
 
-export const entitySchema = object({
-  _id: string(),
+export const timestampsSchema = object({
   _createdAt: date(),
   _updatedAt: date(),
   _deletedAt: union([literal(false), date()]),
+});
+
+export const entitySchema = object({
+  _id: string(),
+  ...timestampsSchema.shape,
 });
 
 export const actorSchema = object({

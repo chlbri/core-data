@@ -1,5 +1,5 @@
-import { dequal } from 'dequal/lite';
 import { ReturnData } from 'core-promises';
+import { dequal } from 'dequal/lite';
 import { nanoid } from 'nanoid';
 import { CollectionPermissions } from '../entities';
 import { isNotClause } from '../functions';
@@ -13,7 +13,8 @@ import {
   DeleteMany,
   DeleteManyByIds,
   DeleteOne,
-  DeleteOneById, ReadAll,
+  DeleteOneById,
+  ReadAll,
   ReadMany,
   ReadManyByIds,
   ReadOne,
@@ -40,13 +41,11 @@ import {
   UpdateOneById,
   UpsertMany,
   UpsertOne,
-  WI
+  WI,
 } from '../types/crud';
 import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import { Entity } from './../entities';
-import {
-  PermissionsReaderOne
-} from './../types/permission';
+import { PermissionsReaderOne } from './../types/permission';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -121,9 +120,7 @@ export function inStreamSearchAdapterKey<T>(
       // #region Array
       case '$all':
         return (arg: T) =>
-          (arg as unknown as string[]).every(val =>
-            dequal(val, value),
-          );
+          (arg as unknown as string[]).every(val => dequal(val, value));
       case '$em':
         return (arg: T) =>
           (arg as unknown as string[]).some(val => dequal(val, value));
@@ -225,12 +222,20 @@ type Permission<T extends Entity> = {
   permissionReader: PermissionsReaderOne<T>;
 };
 
-export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
+export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   /* , Permission<T> */
   constructor(
     private _db: WI<T>[],
     private permissions: CollectionPermissions,
   ) {}
+
+  rinitDB() {
+    this._db.length = 0;
+  }
+
+  get length() {
+    return this._db.length;
+  }
 
   // readonly permissionReaderMany: PermissionsReaderMany<T> = dso => {
   //   const datas = this._db.filter(inStreamSearchAdapter(dso));
@@ -239,6 +244,8 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   // };
   // readonly permissionReaderOne: PermissionsReaderOne<T> = dso =>
   //   this.permissionReaderMany(dso)[0];
+
+  // #region Create
 
   createMany: CreateMany<T> = async ({ data: datas, options }) => {
     const inputs = datas.map(data => ({
@@ -260,6 +267,7 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     const rd = new ReturnData({ status: 210, payload });
     return rd;
   };
+
   createOne: CreateOne<T> = async ({ data }) => {
     const input = {
       _id: nanoid(),
@@ -271,6 +279,7 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     const rd = new ReturnData({ status: 211, payload });
     return rd;
   };
+
   upsertOne: UpsertOne<T> = async ({ _id, data }) => {
     const _filter = inStreamSearchAdapter({ _id, ...data } as any);
     const _exist = this._db.find(_filter);
@@ -285,7 +294,7 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
 
   upsertMany: UpsertMany<T> = async ({ upserts, options }) => {
     const inputs = upserts.map(({ _id, data }) => ({
-      _id: _id ?? nanoid(),
+      _id,
       ...data,
     })) as WI<T>[];
     const alreadyExists: string[] = [];
@@ -297,7 +306,7 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
         if (_exist) {
           alreadyExists.push(_exist);
         } else {
-          this._db.push(input);
+          this._db.push({ ...input, _id: input._id ?? nanoid() });
         }
         return input;
       });
@@ -315,32 +324,45 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       }
     }
 
-    const _inputs = inputs.map(input => {
+    inputs.forEach(input => {
       const _filter = inStreamSearchAdapter(input as any);
       const _exist = this._db.find(_filter)?._id;
+
       if (_exist) {
         alreadyExists.push(_exist);
       } else {
-        this._db.push(input);
+        this._db.push({ ...input, _id: input._id ?? nanoid() });
       }
       return input;
     });
+
     if (alreadyExists.length > 0) {
       return new ReturnData({
         status: 313,
-        payload: _inputs.map(input => input._id),
+        payload: inputs.map(input => input._id),
         message: `${alreadyExists} already exist`,
       });
     } else {
       return new ReturnData({
         status: 213,
-        payload: _inputs.map(input => input._id),
+        payload: inputs.map(input => input._id),
       });
     }
   };
+
+  // #endregion
+
+  // #region Read
+
   readAll: ReadAll<T> = async options => {
-    const out = this._db.slice(0, options?.limit);
-    if (!out.length) {
+    if (options && options.limit && options.limit < this._db.length) {
+      return new ReturnData({
+        status: 314,
+        payload: this._db.slice(0, options.limit),
+        message: 'Limit Reached',
+      });
+    }
+    if (!this._db.length) {
       return new ReturnData({
         status: 514,
         message: 'Empty',
@@ -351,6 +373,7 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       payload: this._db.slice(0, options?.limit),
     });
   };
+
   readMany: ReadMany<T> = async ({ filters, options }) => {
     const reads = this._db.filter(inStreamSearchAdapter(filters));
     if (!reads.length) {
@@ -360,20 +383,12 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       });
     }
     if (options && options.limit && options.limit < reads.length) {
-      const out = reads.slice(0, options?.limit);
-      if (!out.length) {
-        return new ReturnData({
-          status: 515,
-          message: 'Empty',
-        });
-      }
       return new ReturnData({
         status: 115,
-        payload: out,
+        payload: reads.slice(0, options.limit),
         message: 'Limit exceeded',
       });
     }
-
     return new ReturnData({
       status: 215,
       payload: reads,
@@ -390,16 +405,9 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     }
     if (!filters) {
       if (options && options.limit && options.limit < reads1.length) {
-        const out = reads1.slice(0, options?.limit);
-        if (!out.length) {
-          return new ReturnData({
-            status: 516,
-            message: 'Empty',
-          });
-        }
         return new ReturnData({
           status: 116,
-          payload: out,
+          payload: reads1.slice(0, options.limit),
           message: 'Limit exceeded',
         });
       } else {
@@ -413,14 +421,21 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!reads2.length) {
       return new ReturnData({
         status: 516,
-        message: 'Empty',
+        message: 'Filters kill data',
       });
     }
     if (options && options.limit && options.limit < reads2.length) {
       return new ReturnData({
-        status: 316,
-        payload: reads2.slice(0, options?.limit),
+        status: 116,
+        payload: reads2.slice(0, options.limit),
         message: 'Limit exceeded',
+      });
+    }
+    if (reads2.length < reads1.length) {
+      return new ReturnData({
+        status: 316,
+        payload: reads2,
+        message: 'Filters slice datas',
       });
     }
     return new ReturnData({
@@ -449,10 +464,14 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       .find(inStreamSearchAdapter(filters));
 
     if (!exists2) {
-      return new ReturnData({ status: 518, message: 'Not found ' });
+      return new ReturnData({
+        status: 518,
+        message: exits1 ? 'Not found' : 'Filters kill data',
+      });
     }
     return new ReturnData({ status: 218, payload: exists2 });
   };
+
   countAll: CountAll = async () => {
     const out = this._db.length;
     if (out <= 0) {
@@ -477,29 +496,81 @@ export default class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     return new ReturnData({ status: 220, payload });
   };
 
-  /*TODO*/ updateAll: UpdateAll<T>;
-  /*TODO*/ updateMany: UpdateMany<T>;
-  /*TODO*/ updateManyByIds: UpdateManyByIds<T>;
-  /*TODO*/ updateOne: UpdateOne<T>;
-  /*TODO*/ updateOneById: UpdateOneById<T>;
-  /*TODO*/ setAll: SetAll<T>;
-  /*TODO*/ setMany: SetMany<T>;
-  /*TODO*/ setManyByIds: SetManyByIds<T>;
-  /*TODO*/ setOne: SetOne<T>;
-  /*TODO*/ setOneById: SetOneById<T>;
-  /*TODO*/ deleteAll: DeleteAll;
-  /*TODO*/ deleteMany: DeleteMany<T>;
-  /*TODO*/ deleteManyByIds: DeleteManyByIds<T>;
-  /*TODO*/ deleteOne: DeleteOne<T>;
-  /*TODO*/ deleteOneById: DeleteOneById<T>;
-  /*TODO*/ removeAll: RemoveAll;
-  /*TODO*/ removeMany: RemoveMany<T>;
-  /*TODO*/ removeManyByIds: RemoveManyByIds<T>;
-  /*TODO*/ removeOne: RemoveOne<T>;
-  /*TODO*/ removeOneById: RemoveOneById<T>;
-  /*TODO*/ retrieveAll: RetrieveAll;
-  /*TODO*/ retrieveMany: RetrieveMany<T>;
-  /*TODO*/ retrieveManyByIds: RetrieveManyByIds<T>;
-  /*TODO*/ retrieveOne: RetrieveOne<T>;
-  /*TODO*/ retrieveOneById: RetrieveOneById<T>;
+  // #endregion
+
+  updateAll: UpdateAll<T> = async () => {
+    throw undefined;
+  };
+  updateMany: UpdateMany<T> = async () => {
+    throw undefined;
+  };
+  updateManyByIds: UpdateManyByIds<T> = async () => {
+    throw undefined;
+  };
+  updateOne: UpdateOne<T> = async () => {
+    throw undefined;
+  };
+  updateOneById: UpdateOneById<T> = async () => {
+    throw undefined;
+  };
+  setAll: SetAll<T> = async () => {
+    throw undefined;
+  };
+  setMany: SetMany<T> = async () => {
+    throw undefined;
+  };
+  setManyByIds: SetManyByIds<T> = async () => {
+    throw undefined;
+  };
+  setOne: SetOne<T> = async () => {
+    throw undefined;
+  };
+  setOneById: SetOneById<T> = async () => {
+    throw undefined;
+  };
+  deleteAll: DeleteAll = async () => {
+    throw undefined;
+  };
+  deleteMany: DeleteMany<T> = async () => {
+    throw undefined;
+  };
+  deleteManyByIds: DeleteManyByIds<T> = async () => {
+    throw undefined;
+  };
+  deleteOne: DeleteOne<T> = async () => {
+    throw undefined;
+  };
+  deleteOneById: DeleteOneById<T> = async () => {
+    throw undefined;
+  };
+  retrieveAll: RetrieveAll = async () => {
+    throw undefined;
+  };
+  retrieveMany: RetrieveMany<T> = async () => {
+    throw undefined;
+  };
+  retrieveManyByIds: RetrieveManyByIds<T> = async () => {
+    throw undefined;
+  };
+  retrieveOne: RetrieveOne<T> = async () => {
+    throw undefined;
+  };
+  retrieveOneById: RetrieveOneById<T> = async () => {
+    throw undefined;
+  };
+  removeAll: RemoveAll = async () => {
+    throw undefined;
+  };
+  removeMany: RemoveMany<T> = async () => {
+    throw undefined;
+  };
+  removeManyByIds: RemoveManyByIds<T> = async () => {
+    throw undefined;
+  };
+  removeOne: RemoveOne<T> = async () => {
+    throw undefined;
+  };
+  removeOneById: RemoveOneById<T> = async () => {
+    throw undefined;
+  };
 }

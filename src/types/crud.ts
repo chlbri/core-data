@@ -1,6 +1,6 @@
 import type { DeepPartial, NOmit, StringKeys } from 'core';
 import { RD, Status } from 'core-promises';
-import { Entity, WithId, WithoutId } from '../entities';
+import { Entity, WithId, WithoutId, WithoutTimeStamps } from '../entities';
 import type { DSO } from './dso';
 
 export type PRD<T> = Promise<RD<T, Status>>;
@@ -11,6 +11,7 @@ export type DP<T> = DeepPartial<T>;
 
 export type WI<T> = WithId<DP<T>>;
 export type WO<T> = WithoutId<DP<T>>;
+export type WT<T> = WithoutTimeStamps<T>
 
 export type PRDI<T> = PRD<WI<T>>;
 export type PRDIM<T> = PRD<WI<T>[]>;
@@ -29,12 +30,12 @@ export type QueryOptions = {
 // #region Create
 
 export type CreateMany<T extends Entity> = (args: {
-  data: WO<T>[];
+  data: WT<WO<T>>[];
   options?: QueryOptions;
 }) => PRD<string[]>;
 
 export type CreateOne<T extends Entity> = (args: {
-  data: WO<T>;
+  data: WT<WO<T>>;
   options?: NOmit<QueryOptions, 'limit'>;
 }) => PRD<string>;
 
@@ -273,14 +274,14 @@ export interface CRUD<T extends Entity> {
   deleteManyByIds: DeleteManyByIds<T>;
   deleteOne: DeleteOne<T>;
   deleteOneById: DeleteOneById<T>;
-  removeAll: RemoveAll;
-  removeMany: RemoveMany<T>;
-  removeManyByIds: RemoveManyByIds<T>;
-  removeOne: RemoveOne<T>;
-  removeOneById: RemoveOneById<T>;
   retrieveAll: RetrieveAll;
   retrieveMany: RetrieveMany<T>;
   retrieveManyByIds: RetrieveManyByIds<T>;
   retrieveOne: RetrieveOne<T>;
   retrieveOneById: RetrieveOneById<T>;
+  removeAll: RemoveAll;
+  removeMany: RemoveMany<T>;
+  removeManyByIds: RemoveManyByIds<T>;
+  removeOne: RemoveOne<T>;
+  removeOneById: RemoveOneById<T>;
 }
