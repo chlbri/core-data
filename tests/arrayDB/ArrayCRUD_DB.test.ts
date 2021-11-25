@@ -152,8 +152,6 @@ describe('Functions', () => {
     beforeEach(() => crud.rinitDB());
     afterAll(() => crud.rinitDB());
   }
-  
-  // #endregion
 
   // #region Create
 
