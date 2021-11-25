@@ -10,21 +10,22 @@
   "private": true,
   "scripts": {
     "tsc": "tsc",
-    "build": "pnpm run test && pnpm run tsc && pnpm run lint",
-    "build:-test": "pnpm run tsc && pnpm run lint",
+    "build": "pnpm test && pnpm build:-test",
+    "build:-test": "pnpm tsc && pnpm lint",
+    "clear:test": "jest --clearCache",
     "test": "jest",
     "prettier": "prettier --write \"src/**/*.{ts,tsx}\"",
     "eslint": "eslint \"{src/**/*,App}.{ts,tsx,yml,json}\"",
-    "lint": "pnpm run prettier && pnpm run eslint -- --fix",
-    "rm": "./node_modules/.bin/rimraf -rf node_modules pnpm.lock",
-    "rinit": "pnpm run rm && pnpm run pnpm",
+    "lint": "pnpm prettier && pnpm eslint -- --fix",
+    "rm": "rimraf -rf node_modules pnpm-lock.yaml",
+    "rinit": "pnpm rm && pnpm pnpm",
     "publish": "pnpm run rm && pnpm run clean && pnpm run pnpm",
     "pnpm": "pnpm install",
     "upgrade": "pnpm upgrade",
     "upgrade-internal": "pnpm upgrade core core-promises core-test",
     "git-push": "git push --follow-tags",
-    "git-build-push": "pnpm install && pnpm build && pnpm run git-push",
-    "git-publish": "pnpm run git-build-push && git checkout main && git merge dev && pnpm run git-push && git checkout dev"
+    "git-build-push": "pnpm pnpm && pnpm build && pnpm git-push",
+    "git-publish": "pnpm git-build-push && git checkout main && git merge dev && pnpm git-push && git checkout dev"
   },
   "devDependencies": {
     "@types/faker": "^5.5.9",
@@ -32,9 +33,9 @@
     "@types/object.omit": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "^5.1.0",
     "@typescript-eslint/parser": "^5.1.0",
-    "core": "https://github.com/chlbri/core.git#publish",
-    "core-promises": "https://github.com/chlbri/core-promises.git#publish",
-    "core-test": "https://github.com/chlbri/core-test.git#publish",
+    "core": "github:chlbri/core",
+    "core-promises": "github:chlbri/core-promises",
+    "core-test": "github:chlbri/core-test",
     "dayjs": "^1.10.7",
     "dequal": "^2.0.2",
     "edit-json-file": "^1.6.0",
@@ -44,19 +45,20 @@
     "jest": "^27.3.0",
     "jest-cucumber": "^3.0.1",
     "jest-extended": "^1.1.0",
+    "mock-stdin": "^1.0.0",
     "mongodb": "^4.1.3",
     "nanoid": "^3.1.30",
+    "object.omit": "^3.0.0",
     "prettier": "^2.4.1",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.4",
     "ts-jest": "^27.0.7",
     "typescript": "^4.4.4",
-    "zod": "^3.10.1",
-    "object.omit": "^3.0.0"
+    "zod": "^3.10.1"
   },
   "peerDependencies": {
-    "core": "https://github.com/chlbri/core.git#publish",
-    "core-promises": "https://github.com/chlbri/core-promises.git#publish",
+    "core": "github:chlbri/core",
+    "core-promises": "github:chlbri/core-promises",
     "zod": "^3.10.1"
   }
 }

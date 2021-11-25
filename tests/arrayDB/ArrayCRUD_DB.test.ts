@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
-
-import { asyncTest } from 'core-test';
+import { ttestRD } from 'core-test';
 import { ArrayCRUD_DB, Entity } from '../../src';
-import { checkFileElement, checkProperties } from '../config';
+import { checkFileElement, checkProperties, testWrite } from '../config';
 
 // #region Variables for properties
 
@@ -103,6 +102,8 @@ describe('Existence', () => {
 });
 
 describe('Functions', () => {
+  // #region Hooks
+
   function createHook() {
     beforeAll(() => {
       crud.createMany({
@@ -116,14 +117,29 @@ describe('Functions', () => {
     });
     afterAll(() => crud.rinitDB());
   }
-  function upsertForReadHook() {
+  function upsertHookMany() {
     const upserts = [
       { _id: 'first', data: { login: 'lewis' } },
       { _id: 'second', data: { login: 'Joel' } },
       { _id: 'third', data: { login: 'Sarah' } },
       { _id: 'fourth', data: { login: 'Keren' } },
     ];
-    beforeAll(() => {
+    beforeEach(() => {
+      crud.upsertMany({
+        upserts,
+      });
+    });
+    afterEach(() => crud.rinitDB());
+    return upserts;
+  }
+  function upsertHookMOne() {
+    const upserts = [
+      { _id: 'first', data: { login: 'lewis' } },
+      { _id: 'second', data: { login: 'Joel' } },
+      { _id: 'third', data: { login: 'Sarah' } },
+      { _id: 'fourth', data: { login: 'Keren' } },
+    ];
+    beforeEach(() => {
       crud.upsertMany({
         upserts,
       });
@@ -132,122 +148,130 @@ describe('Functions', () => {
     return upserts;
   }
 
+  function rinitHook() {
+    beforeEach(() => crud.rinitDB());
+    afterAll(() => crud.rinitDB());
+  }
+  
+  // #endregion
+
   // #region Create
 
   describe(createMany, () => {
-    beforeEach(() => crud.rinitDB());
+    rinitHook();
 
-    asyncTest({
+    testWrite({
       func: crud.createMany,
-      actuals: [
-        [{ data: [{ login: 'lewis' }, { login: 'lewis' }] }],
-        [
-          {
+      tests: [
+        {
+          args: { data: [{ login: 'lewis' }, { login: 'lewis2' }] },
+          expected: { status: 210 },
+        },
+        {
+          args: { data: [{ login: 'lewis' }, { login: 'lewis2' }] },
+          expected: { status: 210, payload: ['', ''] },
+        },
+        {
+          args: {
             data: [
               { login: 'lewis' },
-              { login: 'lewis' },
-              { login: 'lewis' },
+              { login: 'lewis2' },
+              { login: 'lewis3' },
             ],
-            options: {
-              limit: 2,
-            },
+            options: { limit: 2 },
           },
-        ],
+          expected: { status: 110, payload: ['', ''] },
+        },
+        {
+          args: {
+            data: [
+              { login: 'lewis' },
+              { login: 'lewis2' },
+              { login: 'lewis3' },
+            ],
+          },
+          expected: { status: 210, payload: ['', '', ''] },
+        },
       ],
-      expecteds: [{}, {}],
-      compare: () => {
-        return crud.length === 2;
-      },
-      uuid: true,
     });
   });
 
   describe(createOne, () => {
-    beforeEach(() => crud.rinitDB());
-    afterAll(() => crud.rinitDB());
+    rinitHook();
 
-    asyncTest({
+    testWrite({
       func: crud.createOne,
-      actuals: [
-        [{ data: { login: 'lewis' } }],
-        [{ data: { login: 'lewis' } }],
+      tests: [
+        {
+          args: { data: { login: 'lewis' } },
+          expected: { status: 211 },
+        },
       ],
-      expecteds: [{}, {}],
-      compare: () => {
-        return crud.length === 1;
-      },
-      uuid: true,
     });
   });
 
   describe(upsertOne, () => {
-    beforeAll(() => {
-      crud.createOne({ data: { login: 'lewis' } });
-    });
-    afterAll(() => crud.rinitDB());
-
-    asyncTest({
+    upsertHookMOne();
+    testWrite({
       func: crud.upsertOne,
-      actuals: [
-        [{ data: { login: 'lewis' } }],
-        [{ data: { login: 'lewis' } }],
-        [{ data: { login: 'lewis2' } }],
-        [{ _id: 'custom', data: { login: 'lewis' } }],
-        [{ _id: 'custom', data: { login: 'lewis' } }],
-        [{ _id: 'custom2', data: { login: 'lewis' } }],
+      tests: [
+        { args: { data: { login: 'lewis' } }, expected: { status: 312 } },
+        { args: { data: { login: 'lewis' } }, expected: { status: 312 } },
+        { args: { data: { login: 'lewis2' } }, expected: { status: 212 } },
+        {
+          args: { _id: 'custom', data: { login: 'lewis' } },
+          expected: { status: 212 },
+        },
+        {
+          args: { _id: 'custom', data: { login: 'lewis' } },
+          expected: { status: 312 },
+        },
+        {
+          args: { _id: 'custom2', data: { login: 'lewis' } },
+          expected: { status: 212 },
+        },
       ],
-      expecteds: [
-        312 as any,
-        312 as any,
-        212 as any,
-        212 as any,
-        312 as any,
-        212 as any,
-      ],
-      compare: (rec, status) => {
-        console.log(crud.length);
-
-        return rec.status === status;
-      },
-      uuid: true,
     });
   });
 
   describe(upsertMany, () => {
-    beforeAll(() => {
-      crud.createOne({ data: { login: 'lewis' } });
-    });
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    upsertHookMany();
+    testWrite({
       func: crud.upsertMany,
-      actuals: [
-        [{ upserts: [{ data: { login: 'lewis' } }] }],
-        [
-          {
+      tests: [
+        {
+          args: { upserts: [{ data: { login: 'lewis' } }] },
+          expected: { status: 313 },
+        },
+        {
+          args: {
             upserts: [
               { data: { login: 'lewis2' } },
               { data: { login: 'lewis2' } },
             ],
           },
-        ],
-        [
-          {
+          expected: { status: 313 },
+        },
+        {
+          args: {
             upserts: [
               { _id: 'der', data: { login: 'lewis3' } },
               { _id: 'der2', data: { login: 'lewis4' } },
             ],
           },
-        ],
-        [
-          {
+          expected: { status: 213 },
+        },
+        {
+          args: {
             upserts: [
               { data: { login: 'lewis13' } },
               { data: { login: 'lewis14' } },
             ],
           },
-        ],
-        [
-          {
+          expected: { status: 213 },
+        },
+        {
+          args: {
             upserts: [
               { data: { login: 'lewis6' } },
               { data: { login: 'lewis7' } },
@@ -256,9 +280,10 @@ describe('Functions', () => {
               limit: 1,
             },
           },
-        ],
-        [
-          {
+          expected: { status: 113 },
+        },
+        {
+          args: {
             upserts: [
               { data: { login: 'lewis8' } },
               { data: { login: 'lewis8' } },
@@ -268,9 +293,10 @@ describe('Functions', () => {
               limit: 2,
             },
           },
-        ],
-        [
-          {
+          expected: { status: 313 },
+        },
+        {
+          args: {
             upserts: [
               { _id: 'same', data: { login: 'lewis8' } },
               { _id: 'same', data: { login: 'lewis8' } },
@@ -280,13 +306,9 @@ describe('Functions', () => {
               limit: 2,
             },
           },
-        ],
+          expected: { status: 313 },
+        },
       ],
-      expecteds: [313, 313, 213, 213, 113, 313, 313] as any[],
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
   });
 
@@ -295,508 +317,475 @@ describe('Functions', () => {
   // #region Read
 
   describe(readAll, () => {
-    beforeAll(() => {
-      crud.createMany({
-        data: [
-          { login: 'lewis' },
-          { login: 'Joel' },
-          { login: 'Keren' },
-          { login: 'Sarah' },
-        ],
-      });
-    });
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    createHook();
+    ttestRD({
       func: crud.readAll,
-      actuals: [
-        [],
-        [{ limit: 5 }],
-        [{ limit: 4 }],
-        [{ limit: 3 }],
-        [],
-        [],
+      tests: [
+        {
+          expected: {
+            status: 214,
+            payload: [
+              { login: 'lewis' },
+              { login: 'Joel' },
+              { login: 'Keren' },
+              { login: 'Sarah' },
+            ],
+          },
+        },
+        {
+          args: { limit: 5 },
+          expected: {
+            status: 214,
+            payload: [
+              { login: 'lewis' },
+              { login: 'Joel' },
+              { login: 'Keren' },
+              { login: 'Sarah' },
+            ],
+          },
+        },
+        {
+          args: { limit: 4 },
+          expected: {
+            status: 214,
+            payload: [
+              { login: 'lewis' },
+              { login: 'Joel' },
+              { login: 'Keren' },
+              { login: 'Sarah' },
+            ],
+          },
+        },
+        {
+          args: { limit: 3 },
+          expected: {
+            status: 314,
+            payload: [
+              { login: 'lewis' },
+              { login: 'Joel' },
+              { login: 'Keren' },
+            ],
+          },
+        },
       ],
-      expecteds: [
-        214 as any,
-        214 as any,
-        214 as any,
-        314 as any,
-        214 as any,
-        214 as any,
-      ],
-      compare: (rec, status) => {
-        console.log(crud.length);
-
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
       beforeAll(() => crud.rinitDB());
-      asyncTest({
+      ttestRD({
         func: crud.readAll,
-        actuals: [[]],
-        expecteds: [514 as any],
-        compare: (rec, status) => {
-          console.log(crud.length);
-
-          return rec.status === status;
-        },
-        uuid: true,
+        tests: [
+          {
+            expected: { status: 514 },
+          },
+        ],
       });
     });
   });
 
   describe(readMany, () => {
-    beforeAll(() => {
-      crud.createMany({
-        data: [
-          { login: 'lewis' },
-          { login: 'Joel' },
-          { login: 'Keren' },
-          { login: 'Sarah' },
-        ],
-      });
-    });
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    createHook();
+    ttestRD({
       func: crud.readMany,
-      actuals: [
-        [{ filters: { login: { $exists: true } } }],
-        [{ filters: { login: { $cts: 'e' } } }],
-        [{ filters: { login: { $cts: 'z' } } }],
-        [
-          {
+      tests: [
+        {
+          args: { filters: { login: { $exists: true } } },
+          expected: { status: 215 },
+        },
+        {
+          args: { filters: { login: { $cts: 'e' } } },
+          expected: { status: 215 },
+        },
+        {
+          args: { filters: { login: { $cts: 'z' } } },
+          expected: { status: 515 },
+        },
+        {
+          args: {
             filters: { login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] } },
           },
-        ],
-        [
-          {
+          expected: { status: 215 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             options: { limit: 3 },
           },
-        ],
-        [
-          {
+          expected: { status: 115 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             options: { limit: 4 },
           },
-        ],
-        [
-          {
+          expected: { status: 215 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             options: { limit: 5 },
           },
-        ],
+          expected: { status: 215 },
+        },
       ],
-      expecteds: [215, 215, 515, 215, 115, 215, 215] as any[],
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
       beforeAll(() => crud.rinitDB());
-      asyncTest({
+      ttestRD({
         func: crud.readMany,
-        actuals: [
-          [
-            {
+        tests: [
+          {
+            args: {
               filters: { login: { $exists: true } },
               options: { limit: 3 },
             },
-          ],
+            expected: { status: 515 },
+          },
         ],
-        expecteds: [515] as any,
-        compare: (rec, status) => {
-          console.log(crud.length);
-
-          return rec.status === status;
-        },
-        uuid: true,
       });
     });
   });
 
   describe(readManyByIds, () => {
-    const upserts = [
-      { _id: 'first', data: { login: 'lewis' } },
-      { _id: 'second', data: { login: 'Joel' } },
-      { _id: 'third', data: { login: 'Sarah' } },
-      { _id: 'fourth', data: { login: 'Keren' } },
-    ];
+    const upserts = upsertHookMany();
     beforeAll(() => {
       crud.upsertMany({
         upserts,
       });
     });
     afterAll(() => crud.rinitDB());
-    asyncTest({
+    ttestRD({
       func: crud.readManyByIds,
-      actuals: [
-        [
-          {
-            ids: [],
-          },
-        ],
-        [
-          {
+      tests: [
+        {
+          args: { ids: [] },
+          expected: { status: 516 },
+        },
+        {
+          args: {
             ids: ['notExist1', 'notExists2'],
           },
-        ],
-        [
-          {
+          expected: { status: 516 },
+        },
+        {
+          args: {
             ids: ['first', 'third'],
           },
-        ],
-        [
-          {
+          expected: { status: 216 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $exists: true } },
           },
-        ],
-        [
-          {
+          expected: { status: 216 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $cts: 'e' } },
           },
-        ],
-        [
-          {
+          expected: { status: 316 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $cts: 'z' } },
           },
-        ],
-        [
-          {
+          expected: { status: 516 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] } },
           },
-        ],
-        [
-          {
+          expected: { status: 316 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $exists: true } },
             options: { limit: 3 },
           },
-        ],
-        [
-          {
+          expected: { status: 116 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $exists: true } },
             options: { limit: 4 },
           },
-        ],
-        [
-          {
+          expected: { status: 216 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] } },
             options: { limit: 4 },
           },
-        ],
-        [
-          {
+          expected: { status: 316 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] } },
             options: { limit: 2 },
           },
-        ],
-        [
-          {
+          expected: { status: 116 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             options: { limit: 3 },
           },
-        ],
+          expected: { status: 116 },
+        },
       ],
-      expecteds: [
-        516, 516, 216, 216, 316, 516, 316, 116, 216, 316, 116, 116,
-      ] as any,
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
-      beforeAll(() => crud.rinitDB());
-      asyncTest({
+      rinitHook()
+      ttestRD({
         func: crud.readManyByIds,
-        actuals: [
-          [
-            {
+        tests: [
+          {
+            args: {
               ids: upserts.map(upsert => upsert._id),
               filters: {
                 login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
               },
               options: { limit: 2 },
             },
-          ],
+            expected: { status: 516 },
+          },
         ],
-        expecteds: [516] as any,
-        compare: (rec, status) => rec.status === status,
-        uuid: true,
       });
     });
   });
 
   describe(readOne, () => {
-    beforeAll(() => {
-      crud.createMany({
-        data: [
-          { login: 'lewis' },
-          { login: 'Joel' },
-          { login: 'Keren' },
-          { login: 'Sarah' },
-        ],
-      });
-    });
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    createHook();
+    ttestRD({
       func: crud.readOne,
-      actuals: [
-        [{ filters: { login: { $exists: true } } }],
-        [{ filters: { login: { $cts: 'e' } } }],
-        [{ filters: { login: { $cts: 'z' } } }],
-        [
-          {
+      tests: [
+        {
+          args: { filters: { login: { $exists: true } } },
+          expected: { status: 217 },
+        },
+        {
+          args: { filters: { login: { $cts: 'e' } } },
+          expected: { status: 217 },
+        },
+        {
+          args: { filters: { login: { $cts: 'z' } } },
+          expected: { status: 517 },
+        },
+        {
+          args: {
             filters: { login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] } },
           },
-        ],
+          expected: { status: 217 },
+        },
       ],
-      expecteds: [217, 217, 517, 217] as any,
-      compare: (rec, status) => {
-        console.log(crud.length);
-
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
       beforeAll(() => crud.rinitDB());
-      asyncTest({
+      ttestRD({
         func: crud.readOne,
-        actuals: [
-          [
-            {
+        tests: [
+          {
+            args: {
               filters: {
                 login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
               },
             },
-          ],
+            expected: { status: 517 },
+          },
         ],
-        expecteds: [517] as any,
-        compare: (rec, status) => {
-          console.log(crud.length);
-
-          return rec.status === status;
-        },
-        uuid: true,
       });
     });
   });
 
   describe(readOneById, () => {
-    const upserts = upsertForReadHook();
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    upsertHookMany();
+    ttestRD({
       func: crud.readOneById,
-      actuals: [
-        [
-          {
+      tests: [
+        {
+          args: {
             _id: 'notExist1',
           },
-        ],
-        [
-          {
+          expected: { status: 518 },
+        },
+        {
+          args: {
             _id: 'first',
           },
-        ],
-        [
-          {
+          expected: { status: 218 },
+        },
+        {
+          args: {
             _id: 'second',
             filters: { login: { $exists: true } },
           },
-        ],
-        [
-          {
+          expected: { status: 218 },
+        },
+        {
+          args: {
             _id: 'second',
             filters: { login: { $cts: 'e' } },
           },
-        ],
-        [
-          {
+          expected: { status: 218 },
+        },
+        {
+          args: {
             _id: 'third',
             filters: { login: { $cts: 'e' } },
           },
-        ],
-        [
-          {
+          expected: { status: 518 },
+        },
+        {
+          args: {
             _id: 'third',
             filters: { login: { $cts: 'a' } },
           },
-        ],
-        [
-          {
+          expected: { status: 218 },
+        },
+        {
+          args: {
             _id: 'third',
             filters: { login: { $cts: 'z' } },
           },
-        ],
-        [
-          {
+          expected: { status: 518 },
+        },
+        {
+          args: {
             _id: 'first',
             filters: { login: { $cts: 'z' } },
           },
-        ],
-        [
-          {
+          expected: { status: 518 },
+        },
+        {
+          args: {
             _id: 'first',
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
             },
           },
-        ],
-        [
-          {
+          expected: { status: 218 },
+        },
+        {
+          args: {
             _id: 'notExisted',
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
             },
           },
-        ],
+          expected: { status: 518 },
+        },
       ],
-      expecteds: [518, 218, 218, 218, 518, 218, 518, 518, 218, 518] as any,
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
-      beforeAll(() => crud.rinitDB());
-      asyncTest({
-        func: crud.readManyByIds,
-        actuals: [
-          [
-            {
-              ids: upserts.map(upsert => upsert._id),
+      beforeEach(() => crud.rinitDB());
+      ttestRD({
+        func: crud.readOneById,
+        tests: [
+          {
+            args: {
+              _id: 'first',
               filters: {
                 login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
               },
-              options: { limit: 2 },
             },
-          ],
+            expected: { status: 518 },
+          },
         ],
-        expecteds: [516] as any,
-        compare: (rec, status) => rec.status === status,
-        uuid: true,
       });
     });
   });
 
   describe(countAll, () => {
-    beforeAll(() => {
-      crud.createMany({
-        data: [
-          { login: 'lewis' },
-          { login: 'Joel' },
-          { login: 'Keren' },
-          { login: 'Sarah' },
-        ],
-      });
-    });
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    createHook();
+    ttestRD({
       func: crud.countAll,
-      actuals: [[]],
-      expecteds: [219] as any,
-      compare: (rec, status) => {
-        console.log(crud.length);
-
-        return rec.status === status;
-      },
-      uuid: true,
+      tests: [
+        {
+          expected: { status: 219 },
+        },
+      ],
     });
     describe('DB is empty', () => {
       beforeAll(() => crud.rinitDB());
-      asyncTest({
+      ttestRD({
         func: crud.countAll,
-        actuals: [[]],
-        expecteds: [519 as any],
-        compare: (rec, status) => {
-          console.log(crud.length);
-
-          return rec.status === status;
-        },
-        uuid: true,
+        tests: [
+          {
+            expected: { status: 519 },
+          },
+        ],
       });
     });
   });
 
   describe(count, () => {
-    beforeAll(() => {
-      crud.createMany({
-        data: [
-          { login: 'lewis' },
-          { login: 'Joel' },
-          { login: 'Keren' },
-          { login: 'Sarah' },
-        ],
-      });
-    });
-    afterAll(() => crud.rinitDB());
-    asyncTest({
+    createHook();
+    ttestRD({
       func: crud.count,
-      actuals: [
-        [{ filters: { login: { $exists: true } } }],
-        [{ filters: { login: { $cts: 'e' } } }],
-        [{ filters: { login: { $cts: 'z' } } }],
-        [
-          {
+      tests: [
+        {
+          args: { filters: { login: { $exists: true } } },
+          expected: { status: 220 },
+        },
+        {
+          args: { filters: { login: { $cts: 'e' } } },
+          expected: { status: 220 },
+        },
+        {
+          args: { filters: { login: { $cts: 'z' } } },
+          expected: { status: 520 },
+        },
+        {
+          args: {
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
             },
           },
-        ],
-        [
-          {
+          expected: { status: 220 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             options: { limit: 3 },
           },
-        ],
-        [
-          {
+          expected: { status: 120 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             options: { limit: 4 },
           },
-        ],
-        [
-          {
+          expected: { status: 220 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             options: { limit: 5 },
           },
-        ],
+          expected: { status: 220 },
+        },
       ],
-      expecteds: [220, 220, 520, 220, 120, 220, 220] as any[],
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
       beforeAll(() => crud.rinitDB());
-      asyncTest({
+      ttestRD({
         func: crud.count,
-        actuals: [
-          [
-            {
+        tests: [
+          {
+            args: {
               filters: { login: { $exists: true } },
               options: { limit: 3 },
             },
-          ],
+            expected: { status: 520 },
+          },
         ],
-        expecteds: [520] as any,
-        compare: (rec, status) => {
-          return rec.status === status;
-        },
-        uuid: true,
       });
     });
   });
@@ -807,182 +796,167 @@ describe('Functions', () => {
 
   describe(updateAll, () => {
     createHook();
-    asyncTest({
+    ttestRD({
       func: crud.updateAll,
-      actuals: [
-        [{ data: { login: 'same' } }],
-        [{ data: { login: 'same' }, options: { limit: 3 } }],
-        [{ data: { login: 'same' } }],
-        [{ data: { login: 'same' } }],
+      tests: [
+        { args: { data: { login: 'same' } }, expected: { status: 221 } },
+        {
+          args: { data: { login: 'same' }, options: { limit: 3 } },
+          expected: { status: 121 },
+        },
+        { args: { data: { login: 'same' } }, expected: { status: 221 } },
+        { args: { data: { login: 'same' } }, expected: { status: 221 } },
       ],
-      expecteds: [221, 121, 221, 221] as any,
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
-      beforeAll(() => crud.rinitDB());
-      asyncTest({
+      rinitHook();
+      ttestRD({
         func: crud.updateAll,
-        actuals: [[{ data: { login: 'same' } }]],
-        expecteds: [521] as any,
-        compare: (rec, status) => {
-          console.log(crud.length);
-
-          return rec.status === status;
-        },
-        uuid: true,
+        tests: [
+          {
+            args: { data: { login: 'same' }, options: { limit: 3 } },
+            expected: { status: 521 },
+          },
+        ],
       });
     });
   });
 
   describe(updateMany, () => {
     createHook();
-    asyncTest({
+    ttestRD({
       func: crud.updateMany,
-      actuals: [
-        [
-          {
+      tests: [
+        {
+          args: {
             filters: { login: { $exists: true } },
             data: { login: 'same' },
           },
-        ],
-        [
-          {
+          expected: { status: 222 },
+        },
+        {
+          args: {
             filters: { login: { $exists: true } },
             data: { login: 'same' },
             options: { limit: 3 },
           },
-        ],
-        [
-          {
+          expected: { status: 122 },
+        },
+        {
+          args: {
             filters: { login: { $cts: 'z' } },
             data: { login: 'same' },
           },
-        ],
-        [
-          {
+          expected: { status: 522 },
+        },
+        {
+          args: {
             filters: { login: { $cts: 'e' } },
             data: { login: 'same' },
           },
-        ],
+          expected: { status: 222 },
+        },
       ],
-      expecteds: [222, 122, 522, 222] as any,
-      compare: (rec, status) => {
-        return rec.status === status;
-      },
-      uuid: true,
     });
     describe('DB is empty', () => {
-      beforeAll(() => crud.rinitDB());
-      asyncTest({
+      rinitHook();
+      ttestRD({
         func: crud.updateMany,
-        actuals: [
-          [
-            {
+        tests: [
+          {
+            args: {
               filters: { login: { $exists: true } },
               data: { login: 'same' },
               options: { limit: 3 },
             },
-          ],
+            expected: { status: 522 },
+          },
         ],
-        expecteds: [522] as any,
-        compare: (rec, status) => {
-          console.log(crud.length);
-
-          return rec.status === status;
-        },
-        uuid: true,
       });
     });
   });
 
-  /*TODO*/ describe(updateManyByIds, () => {
-    const upserts = [
-      { _id: 'first', data: { login: 'lewis' } },
-      { _id: 'second', data: { login: 'Joel' } },
-      { _id: 'third', data: { login: 'Sarah' } },
-      { _id: 'fourth', data: { login: 'Keren' } },
-    ];
-
-    beforeEach(() => {
-      crud.rinitDB();
-      crud.upsertMany({
-        upserts,
-      });
-    });
-    afterAll(() => crud.rinitDB());
+  describe(updateManyByIds, () => {
+    const upserts = upsertHookMany();
     const data = { login: 'same' };
-    asyncTest({
+    ttestRD({
       func: crud.updateManyByIds,
-      actuals: [
-        [
-          {
+      tests: [
+        {
+          args: {
             ids: [],
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 523 },
+        },
+        {
+          args: {
             ids: ['notExist1', 'notExists2'],
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 523 },
+        },
+        {
+          args: {
             ids: ['first', 'third'],
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 223 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $exists: true } },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 223 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $cts: 'e' } },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 323 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $cts: 'z' } },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 523 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
             },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 323 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $exists: true } },
             options: { limit: 3 },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 123 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: { login: { $exists: true } },
             options: { limit: 4 },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 223 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
@@ -990,9 +964,10 @@ describe('Functions', () => {
             options: { limit: 4 },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 323 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
@@ -1000,16 +975,18 @@ describe('Functions', () => {
             options: { limit: 2 },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 123 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             options: { limit: 3 },
             data,
           },
-        ],
-        [
-          {
+          expected: { status: 123 },
+        },
+        {
+          args: {
             ids: upserts.map(upsert => upsert._id),
             filters: {
               login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
@@ -1017,36 +994,27 @@ describe('Functions', () => {
             options: { limit: 3 },
             data,
           },
-        ],
+          expected: { status: 323 },
+        },
       ],
-      expecteds: [
-        523, 523, 223, 223, 323, 523, 323, 123, 223, 323, 123, 123, 323,
-      ] as any,
-      compare: (rec, status) => rec.status === status,
-      uuid: true,
     });
     describe('DB is empty', () => {
-      beforeEach(() => crud.rinitDB());
-      asyncTest({
+      rinitHook();
+      ttestRD({
         func: crud.updateManyByIds,
-        actuals: [
-          [
-            {
+        tests: [
+          {
+            args: {
               ids: upserts.map(upsert => upsert._id),
               filters: {
                 login: { $or: [{ $cts: 'z' }, { $cts: 'e' }] },
               },
-              options: { limit: 2 },
+              options: { limit: 3 },
               data,
             },
-          ],
+            expected: { status: 523 },
+          },
         ],
-        expecteds: [523] as any,
-        compare: (rec, status) => {
-          console.log(crud.length);
-          return rec.status === status;
-        },
-        uuid: true,
       });
     });
   });

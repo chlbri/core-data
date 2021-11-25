@@ -189,8 +189,8 @@ class ArrayCRUD_DB {
                 const _inputs = inputs.slice(0, limit);
                 this._db.push(..._inputs);
                 const payload = _inputs.map(input => input._id);
-                const message = 'Limit exceeded';
-                const rd = new core_promises_1.ReturnData({ status: 110, payload, message });
+                const messages = ['Limit exceeded'];
+                const rd = new core_promises_1.ReturnData({ status: 110, payload, messages });
                 return rd;
             }
             this._db.push(...inputs);
@@ -212,8 +212,8 @@ class ArrayCRUD_DB {
             const _filter = inStreamSearchAdapter({ _id, ...data });
             const _exist = this._db.find(_filter);
             if (_exist) {
-                const message = 'Already exists';
-                return new core_promises_1.ReturnData({ status: 312, payload: _id, message });
+                const messages = ['Already exists'];
+                return new core_promises_1.ReturnData({ status: 312, payload: _id, messages });
             }
             else {
                 this._db.push({ _id: _id !== null && _id !== void 0 ? _id : (0, nanoid_1.nanoid)(), ...data });
@@ -244,7 +244,7 @@ class ArrayCRUD_DB {
                     return new core_promises_1.ReturnData({
                         status: 313,
                         payload: _inputs.map(input => input._id),
-                        message: `${alreadyExists} already exist`,
+                        messages: [`${alreadyExists.length} already exist`],
                     });
                 }
                 else {
@@ -270,7 +270,7 @@ class ArrayCRUD_DB {
                 return new core_promises_1.ReturnData({
                     status: 313,
                     payload: inputs.map(input => input._id),
-                    message: `${alreadyExists} already exist`,
+                    messages: [`${alreadyExists.length} already exist`],
                 });
             }
             else {
@@ -287,13 +287,13 @@ class ArrayCRUD_DB {
                 return new core_promises_1.ReturnData({
                     status: 314,
                     payload: this._db.slice(0, options.limit),
-                    message: 'Limit Reached',
+                    messages: ['Limit Reached'],
                 });
             }
             if (!this._db.length) {
                 return new core_promises_1.ReturnData({
                     status: 514,
-                    message: 'Empty',
+                    messages: ['Empty'],
                 });
             }
             return new core_promises_1.ReturnData({
@@ -306,14 +306,14 @@ class ArrayCRUD_DB {
             if (!reads.length) {
                 return new core_promises_1.ReturnData({
                     status: 515,
-                    message: 'Empty',
+                    messages: ['Empty'],
                 });
             }
             if (options && options.limit && options.limit < reads.length) {
                 return new core_promises_1.ReturnData({
                     status: 115,
                     payload: reads.slice(0, options.limit),
-                    message: 'Limit exceeded',
+                    messages: ['Limit Reached'],
                 });
             }
             return new core_promises_1.ReturnData({
@@ -326,7 +326,7 @@ class ArrayCRUD_DB {
             if (!reads1.length) {
                 return new core_promises_1.ReturnData({
                     status: 516,
-                    message: 'Empty',
+                    messages: ['Empty'],
                 });
             }
             if (!filters) {
@@ -334,7 +334,7 @@ class ArrayCRUD_DB {
                     return new core_promises_1.ReturnData({
                         status: 116,
                         payload: reads1.slice(0, options.limit),
-                        message: 'Limit exceeded',
+                        messages: ['Limit Reached'],
                     });
                 }
                 else {
@@ -348,21 +348,21 @@ class ArrayCRUD_DB {
             if (!reads2.length) {
                 return new core_promises_1.ReturnData({
                     status: 516,
-                    message: 'Filters kill data',
+                    messages: ['Filters kill data'],
                 });
             }
             if (options && options.limit && options.limit < reads2.length) {
                 return new core_promises_1.ReturnData({
                     status: 116,
                     payload: reads2.slice(0, options.limit),
-                    message: 'Limit exceeded',
+                    messages: ['Limit Reached'],
                 });
             }
             if (reads2.length < reads1.length) {
                 return new core_promises_1.ReturnData({
                     status: 316,
                     payload: reads2,
-                    message: 'Filters slice datas',
+                    messages: ['Filters slice datas'],
                 });
             }
             return new core_promises_1.ReturnData({
@@ -375,13 +375,13 @@ class ArrayCRUD_DB {
             if (payload) {
                 return new core_promises_1.ReturnData({ status: 217, payload });
             }
-            return new core_promises_1.ReturnData({ status: 517, message: 'NotFound' });
+            return new core_promises_1.ReturnData({ status: 517, messages: ['NotFound'] });
         };
         this.readOneById = async ({ _id, filters }) => {
             const exits1 = this._db.find(data => data._id === _id);
             if (!filters) {
                 if (!exits1) {
-                    return new core_promises_1.ReturnData({ status: 518, message: 'Not Found' });
+                    return new core_promises_1.ReturnData({ status: 518, messages: ['NotFound'] });
                 }
                 else
                     return new core_promises_1.ReturnData({ status: 218, payload: exits1 });
@@ -392,7 +392,7 @@ class ArrayCRUD_DB {
             if (!exists2) {
                 return new core_promises_1.ReturnData({
                     status: 518,
-                    message: exits1 ? 'Not found' : 'Filters kill data',
+                    messages: exits1 ? ['Not found'] : ['Filters kill data'],
                 });
             }
             return new core_promises_1.ReturnData({ status: 218, payload: exists2 });
@@ -400,21 +400,21 @@ class ArrayCRUD_DB {
         this.countAll = async () => {
             const out = this._db.length;
             if (out <= 0) {
-                return new core_promises_1.ReturnData({ status: 519, message: 'Empty' });
+                return new core_promises_1.ReturnData({ status: 519, messages: ['Empty'] });
             }
             return new core_promises_1.ReturnData({ status: 219, payload: this._db.length });
         };
         this.count = async ({ filters, options }) => {
             const payload = this._db.filter(inStreamSearchAdapter(filters)).length;
             if (payload <= 0) {
-                return new core_promises_1.ReturnData({ status: 520, message: 'Empty' });
+                return new core_promises_1.ReturnData({ status: 520, messages: ['Empty'] });
             }
             const limit = options === null || options === void 0 ? void 0 : options.limit;
             if (limit && limit < payload) {
                 return new core_promises_1.ReturnData({
                     status: 120,
                     payload: limit,
-                    message: 'Limit exceeded',
+                    messages: ['Limit Reached'],
                 });
             }
             return new core_promises_1.ReturnData({ status: 220, payload });
@@ -423,7 +423,7 @@ class ArrayCRUD_DB {
         this.updateAll = async ({ data, options }) => {
             const db = [...this._db];
             if (!db.length) {
-                return new core_promises_1.ReturnData({ status: 521, message: 'DB is empty' });
+                return new core_promises_1.ReturnData({ status: 521, messages: ['Empty'] });
             }
             const limit = options === null || options === void 0 ? void 0 : options.limit;
             const inputs = db
@@ -435,7 +435,7 @@ class ArrayCRUD_DB {
                 return new core_promises_1.ReturnData({
                     status: 121,
                     payload: inputs.map(input => input._id),
-                    message: 'Options limit exceeded',
+                    messages: ['Limit Reached'],
                 });
             }
             return new core_promises_1.ReturnData({
@@ -446,21 +446,24 @@ class ArrayCRUD_DB {
         this.updateMany = async ({ filters, data, options }) => {
             const db = [...this._db];
             if (!db.length) {
-                return new core_promises_1.ReturnData({ status: 522, message: 'DB is empty' });
+                return new core_promises_1.ReturnData({ status: 522, messages: ['Empty'] });
             }
             const _filter = inStreamSearchAdapter(filters);
             const limit = options === null || options === void 0 ? void 0 : options.limit;
             const inputs = db.filter(_filter);
             const payload = inputs.slice(0, limit).map(input => input._id);
             if (!inputs.length) {
-                return new core_promises_1.ReturnData({ status: 522, message: 'Filters get empty' });
+                return new core_promises_1.ReturnData({
+                    status: 522,
+                    messages: ['Filters kill data'],
+                });
             }
             if (limit && limit < inputs.length) {
                 this.__update(payload /*?*/, data);
                 return new core_promises_1.ReturnData({
                     status: 122,
                     payload,
-                    message: 'Options limit exceeded',
+                    messages: ['Limit Reached'],
                 });
             }
             return new core_promises_1.ReturnData({
@@ -471,7 +474,7 @@ class ArrayCRUD_DB {
         this.updateManyByIds = async ({ ids, filters, data, options, }) => {
             const db = [...this._db];
             if (!db.length) {
-                return new core_promises_1.ReturnData({ status: 523, message: 'DB is empty' });
+                return new core_promises_1.ReturnData({ status: 523, messages: ['Empty'] });
             }
             const limit = options === null || options === void 0 ? void 0 : options.limit;
             // const mapper = (_data: WI<T>) => ({ ..._data, ...data });
@@ -479,7 +482,7 @@ class ArrayCRUD_DB {
             if (!inputs1.length) {
                 return new core_promises_1.ReturnData({
                     status: 523,
-                    message: 'ids cannot reach DB',
+                    messages: ['ids cannot reach DB'],
                 });
             }
             if (!filters) {
@@ -490,7 +493,7 @@ class ArrayCRUD_DB {
                     return new core_promises_1.ReturnData({
                         status: 123,
                         payload,
-                        message: 'Options limit exceeded',
+                        messages: ['Limit Reached'],
                     });
                 }
                 return new core_promises_1.ReturnData({
@@ -506,21 +509,21 @@ class ArrayCRUD_DB {
             if (!inputs2.length) {
                 return new core_promises_1.ReturnData({
                     status: 523,
-                    message: 'Empty',
+                    messages: ['Filters kill data'],
                 });
             }
             if (limit && limit < inputs2.length) {
                 return new core_promises_1.ReturnData({
                     status: 123,
                     payload,
-                    message: 'Options limit exceeded',
+                    messages: ['Limit Reached'],
                 });
             }
             if (inputs2.length < inputs1.length) {
                 return new core_promises_1.ReturnData({
                     status: 323,
                     payload,
-                    message: 'Fillers reduce the data',
+                    messages: ['Filters slice datas'],
                 });
             }
             return new core_promises_1.ReturnData({

@@ -274,8 +274,8 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       const _inputs = inputs.slice(0, limit);
       this._db.push(..._inputs);
       const payload = _inputs.map(input => input._id);
-      const message = 'Limit exceeded';
-      const rd = new ReturnData({ status: 110, payload, message });
+      const messages = ['Limit exceeded'];
+      const rd = new ReturnData({ status: 110, payload, messages });
       return rd;
     }
 
@@ -301,8 +301,8 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     const _filter = inStreamSearchAdapter({ _id, ...data } as any);
     const _exist = this._db.find(_filter);
     if (_exist) {
-      const message = 'Already exists';
-      return new ReturnData({ status: 312, payload: _id, message });
+      const messages = ['Already exists'];
+      return new ReturnData({ status: 312, payload: _id, messages });
     } else {
       this._db.push({ _id: _id ?? nanoid(), ...data });
       return new ReturnData({ status: 212, payload: _id });
@@ -331,7 +331,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
         return new ReturnData({
           status: 313,
           payload: _inputs.map(input => input._id),
-          message: `${alreadyExists} already exist`,
+          messages: [`${alreadyExists.length} already exist`],
         });
       } else {
         return new ReturnData({
@@ -357,7 +357,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       return new ReturnData({
         status: 313,
         payload: inputs.map(input => input._id),
-        message: `${alreadyExists} already exist`,
+        messages: [`${alreadyExists.length} already exist`],
       });
     } else {
       return new ReturnData({
@@ -376,13 +376,13 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       return new ReturnData({
         status: 314,
         payload: this._db.slice(0, options.limit),
-        message: 'Limit Reached',
+        messages: ['Limit Reached'],
       });
     }
     if (!this._db.length) {
       return new ReturnData({
         status: 514,
-        message: 'Empty',
+        messages: ['Empty'],
       });
     }
     return new ReturnData({
@@ -396,14 +396,14 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!reads.length) {
       return new ReturnData({
         status: 515,
-        message: 'Empty',
+        messages: ['Empty'],
       });
     }
     if (options && options.limit && options.limit < reads.length) {
       return new ReturnData({
         status: 115,
         payload: reads.slice(0, options.limit),
-        message: 'Limit exceeded',
+        messages: ['Limit Reached'],
       });
     }
     return new ReturnData({
@@ -417,7 +417,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!reads1.length) {
       return new ReturnData({
         status: 516,
-        message: 'Empty',
+        messages: ['Empty'],
       });
     }
     if (!filters) {
@@ -425,7 +425,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
         return new ReturnData({
           status: 116,
           payload: reads1.slice(0, options.limit),
-          message: 'Limit exceeded',
+          messages: ['Limit Reached'],
         });
       } else {
         return new ReturnData({
@@ -438,21 +438,21 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!reads2.length) {
       return new ReturnData({
         status: 516,
-        message: 'Filters kill data',
+        messages: ['Filters kill data'],
       });
     }
     if (options && options.limit && options.limit < reads2.length) {
       return new ReturnData({
         status: 116,
         payload: reads2.slice(0, options.limit),
-        message: 'Limit exceeded',
+        messages: ['Limit Reached'],
       });
     }
     if (reads2.length < reads1.length) {
       return new ReturnData({
         status: 316,
         payload: reads2,
-        message: 'Filters slice datas',
+        messages: ['Filters slice datas'],
       });
     }
     return new ReturnData({
@@ -466,14 +466,14 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (payload) {
       return new ReturnData({ status: 217, payload });
     }
-    return new ReturnData({ status: 517, message: 'NotFound' });
+    return new ReturnData({ status: 517, messages: ['NotFound'] });
   };
 
   readOneById: ReadOneById<T> = async ({ _id, filters }) => {
     const exits1 = this._db.find(data => data._id === _id);
     if (!filters) {
       if (!exits1) {
-        return new ReturnData({ status: 518, message: 'Not Found' });
+        return new ReturnData({ status: 518, messages: ['NotFound'] });
       } else return new ReturnData({ status: 218, payload: exits1 });
     }
     const exists2 = this._db
@@ -483,7 +483,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!exists2) {
       return new ReturnData({
         status: 518,
-        message: exits1 ? 'Not found' : 'Filters kill data',
+        messages: exits1 ? ['Not found'] : ['Filters kill data'],
       });
     }
     return new ReturnData({ status: 218, payload: exists2 });
@@ -492,7 +492,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   countAll: CountAll = async () => {
     const out = this._db.length;
     if (out <= 0) {
-      return new ReturnData({ status: 519, message: 'Empty' });
+      return new ReturnData({ status: 519, messages: ['Empty'] });
     }
     return new ReturnData({ status: 219, payload: this._db.length });
   };
@@ -500,14 +500,14 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   count: Count<T> = async ({ filters, options }) => {
     const payload = this._db.filter(inStreamSearchAdapter(filters)).length;
     if (payload <= 0) {
-      return new ReturnData({ status: 520, message: 'Empty' });
+      return new ReturnData({ status: 520, messages: ['Empty'] });
     }
     const limit = options?.limit;
     if (limit && limit < payload) {
       return new ReturnData({
         status: 120,
         payload: limit,
-        message: 'Limit exceeded',
+        messages: ['Limit Reached'],
       });
     }
     return new ReturnData({ status: 220, payload });
@@ -518,7 +518,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   updateAll: UpdateAll<T> = async ({ data, options }) => {
     const db = [...this._db];
     if (!db.length) {
-      return new ReturnData({ status: 521, message: 'DB is empty' });
+      return new ReturnData({ status: 521, messages: ['Empty'] });
     }
     const limit = options?.limit;
     const inputs = db
@@ -530,7 +530,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       return new ReturnData({
         status: 121,
         payload: inputs.map(input => input._id),
-        message: 'Options limit exceeded',
+        messages: ['Limit Reached'],
       });
     }
     return new ReturnData({
@@ -542,7 +542,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   updateMany: UpdateMany<T> = async ({ filters, data, options }) => {
     const db = [...this._db];
     if (!db.length) {
-      return new ReturnData({ status: 522, message: 'DB is empty' });
+      return new ReturnData({ status: 522, messages: ['Empty'] });
     }
 
     const _filter = inStreamSearchAdapter(filters);
@@ -551,7 +551,10 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
 
     const payload = inputs.slice(0, limit).map(input => input._id);
     if (!inputs.length) {
-      return new ReturnData({ status: 522, message: 'Filters get empty' });
+      return new ReturnData({
+        status: 522,
+        messages: ['Filters kill data'],
+      });
     }
 
     if (limit && limit < inputs.length) {
@@ -559,7 +562,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       return new ReturnData({
         status: 122,
         payload,
-        message: 'Options limit exceeded',
+        messages: ['Limit Reached'],
       });
     }
     return new ReturnData({
@@ -576,7 +579,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   }) => {
     const db = [...this._db];
     if (!db.length) {
-      return new ReturnData({ status: 523, message: 'DB is empty' });
+      return new ReturnData({ status: 523, messages: ['Empty'] });
     }
     const limit = options?.limit;
 
@@ -587,7 +590,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!inputs1.length) {
       return new ReturnData({
         status: 523,
-        message: 'ids cannot reach DB',
+        messages: ['ids cannot reach DB'],
       });
     }
     if (!filters) {
@@ -599,7 +602,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
         return new ReturnData({
           status: 123,
           payload,
-          message: 'Options limit exceeded',
+          messages: ['Limit Reached'],
         });
       }
       return new ReturnData({
@@ -617,14 +620,14 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!inputs2.length) {
       return new ReturnData({
         status: 523,
-        message: 'Empty',
+        messages: ['Filters kill data'],
       });
     }
     if (limit && limit < inputs2.length) {
       return new ReturnData({
         status: 123,
         payload,
-        message: 'Options limit exceeded',
+        messages: ['Limit Reached'],
       });
     }
 
@@ -632,7 +635,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       return new ReturnData({
         status: 323,
         payload,
-        message: 'Fillers reduce the data',
+        messages: ['Filters slice datas'],
       });
     }
 
