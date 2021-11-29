@@ -3,7 +3,7 @@ import { dequal } from 'dequal/lite';
 import { nanoid } from 'nanoid';
 import { CollectionPermissions } from '../entities';
 import { produce } from 'immer';
-import { isNotClause } from '../functions';
+import { isNotClause } from '../function/config';
 import {
   Count,
   CountAll,
@@ -232,7 +232,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     private permissions: CollectionPermissions,
   ) {}
 
-  __update = (payload: string[], update: WO<T>) => {
+  __updateMany = (payload: string[], update: WO<T>) => {
     const __db = produce([...this._db], draft => {
       payload.forEach(id => {
         const index = draft.findIndex((data: any) => data._id === id);
@@ -240,6 +240,21 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
           (draft[index] as any).login = (update as any).login;
         }
       });
+    });
+    this.rinitDB();
+    this._db.push(...__db);
+    this._db; //?
+  };
+
+  __updateOne = (payload: string, update: WO<T>) => {
+    const __db = produce([...this._db], draft => {
+      const index = draft.findIndex((data: any) => data._id === payload);
+      if (index !== -1) {
+        draft[index] = {
+          ...update,
+          _id: (draft[index] as any)._id,
+        } as any;
+      }
     });
     this.rinitDB();
     this._db.push(...__db);
@@ -558,7 +573,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     }
 
     if (limit && limit < inputs.length) {
-      this.__update(payload /*?*/, data);
+      this.__updateMany(payload /*?*/, data);
       return new ReturnData({
         status: 122,
         payload,
@@ -596,7 +611,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (!filters) {
       const payload = inputs1.slice(0, limit).map(input => input._id);
 
-      this.__update(payload, data);
+      this.__updateMany(payload, data);
       this._db; //?
       if (limit && limit < inputs1.length) {
         return new ReturnData({
@@ -615,7 +630,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     inputs2.length; //?
     const payload = inputs2.slice(0, limit).map(input => input._id);
 
-    this.__update(payload, data);
+    this.__updateMany(payload, data);
 
     if (!inputs2.length) {
       return new ReturnData({
@@ -644,8 +659,22 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       payload,
     });
   };
-  updateOne: UpdateOne<T> = async () => {
-    throw undefined;
+
+  updateOne: UpdateOne<T> = async ({ data, filters }) => {
+    let out = new ReturnData({ status: 524, messages: ['db_empty'] });
+    if (this._db.length < 1) {
+      return out;
+    }
+    out = new ReturnData({ status: 524, messages: ['filters_empty'] });
+    const _filter = inStreamSearchAdapter(filters);
+    const find = this._db.find(_filter);
+    if (!find) {
+      return out;
+    }
+    const payload = find._id;
+    this.__updateOne(payload, data);
+    out = new ReturnData({ status: 224, payload });
+    return out;
   };
   updateOneById: UpdateOneById<T> = async () => {
     throw undefined;

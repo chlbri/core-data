@@ -1,14 +1,15 @@
 lockfileVersion: 5.3
 
 specifiers:
+  '@core_chlbri/core': ^0.1.1-dc
   '@types/faker': ^5.5.9
   '@types/jest': ^27.0.2
   '@types/object.omit': ^3.0.0
   '@typescript-eslint/eslint-plugin': ^5.1.0
   '@typescript-eslint/parser': ^5.1.0
-  core: https://github.com/chlbri/core.git#publish
-  core-promises: https://github.com/chlbri/core-promises.git#publish
-  core-test: https://github.com/chlbri/core-test.git#publish
+  core: https://github.com/chlbri/core.git
+  core-promises: https://github.com/chlbri/core-promises.git
+  core-test: https://github.com/chlbri/core-test.git
   dayjs: ^1.10.7
   dequal: ^2.0.2
   edit-json-file: ^1.6.0
@@ -18,6 +19,7 @@ specifiers:
   jest: ^27.3.0
   jest-cucumber: ^3.0.1
   jest-extended: ^1.1.0
+  mock-stdin: ^1.0.0
   mongodb: ^4.1.3
   nanoid: ^3.1.30
   object.omit: ^3.0.0
@@ -28,15 +30,18 @@ specifiers:
   typescript: ^4.4.4
   zod: ^3.10.1
 
+dependencies:
+  '@core_chlbri/core': 0.1.1-dc
+
 devDependencies:
   '@types/faker': 5.5.9
   '@types/jest': 27.0.3
   '@types/object.omit': 3.0.0
   '@typescript-eslint/eslint-plugin': 5.4.0_5c8ff4cecd5a55e744866c0654edac32
   '@typescript-eslint/parser': 5.4.0_eslint@8.3.0+typescript@4.5.2
-  core: github.com/chlbri/core/3711f58f7aca16f732ec36543ece96176463a6bf
-  core-promises: github.com/chlbri/core-promises/8629abdc7704b383e90a407269581648add9656e_zod@3.11.6
-  core-test: github.com/chlbri/core-test/8fa8e062566ebaaff45dcc1b698311eaa84619ed_c48e05cf14400364ab00aa0375c6a737
+  core: github.com/chlbri/core/732d2ba7642c4ded60b6611f5667082a47327122
+  core-promises: github.com/chlbri/core-promises/24185b774bd321e9176c991f1d39ac6c4fc9f34d_1b3125c42a768499b321738d48192baf
+  core-test: github.com/chlbri/core-test/82b44db70a40ddc5df124753125866519dc19f94_65daf11ba3e57c23c7c0f3bd1fc3d98f
   dayjs: 1.10.7
   dequal: 2.0.2
   edit-json-file: 1.6.2
@@ -46,6 +51,7 @@ devDependencies:
   jest: 27.3.1
   jest-cucumber: 3.0.1
   jest-extended: 1.1.0
+  mock-stdin: 1.0.0
   mongodb: 4.2.0
   nanoid: 3.1.30
   object.omit: 3.0.0
@@ -407,6 +413,14 @@ packages:
       exec-sh: 0.3.6
       minimist: 1.2.5
     dev: true
+
+  /@core_chlbri/core/0.1.1-dc:
+    resolution: {integrity: sha512-jW6WYspSmvtAyUD3ZhISO9/AvaGuOc7nO0jC3kY/u0k+cHwrlE+9A7gdZH0at2WLxif704mYoLYZw4xkIu7msQ==}
+    engines: {node: '>=12'}
+    dependencies:
+      dequal: 2.0.2
+      nanoid: 3.1.30
+    dev: false
 
   /@eslint/eslintrc/1.0.4:
     resolution: {integrity: sha512-h8Vx6MdxwWI2WM8/zREHMoqdgLNXEL4QX3MWSVMdyNJGvXVOs+6lp+m2hc3FnuMHDc4poxFNI20vCk0OmI4G0Q==}
@@ -1846,7 +1860,6 @@ packages:
   /dequal/2.0.2:
     resolution: {integrity: sha512-q9K8BlJVxK7hQYqa6XISGmBZbtQQWVXSrRrWreHC94rMt1QL/Impruc+7p2CYSYuVIUr+YCt6hjrs1kkdJRTug==}
     engines: {node: '>=6'}
-    dev: true
 
   /detect-newline/3.1.0:
     resolution: {integrity: sha512-TLz+x/vEXm/Y7P7wn1EJFNLxYpUD4TgMosxY6fAVJUnJMbupHBOncxyWUG9OpTaH9EBD7uFI5LfEgmMOc54DsA==}
@@ -4049,6 +4062,10 @@ packages:
       is-extendable: 1.0.1
     dev: true
 
+  /mock-stdin/1.0.0:
+    resolution: {integrity: sha512-tukRdb9Beu27t6dN+XztSRHq9J0B/CoAOySGzHfn8UTfmqipA5yNT/sDUEyYdAV3Hpka6Wx6kOMxuObdOex60Q==}
+    dev: true
+
   /mongodb-connection-string-url/2.2.0:
     resolution: {integrity: sha512-U0cDxLUrQrl7DZA828CA+o69EuWPWEJTwdMPozyd7cy/dbtncUZczMw7wRHcwMD7oKOn0NM2tF9jdf5FFVW9CA==}
     dependencies:
@@ -4079,7 +4096,6 @@ packages:
     resolution: {integrity: sha512-zJpuPDwOv8D2zq2WRoMe1HsfZthVewpel9CAvTfc/2mBD1uUT/agc5f7GHGWXlYkFvi1mVxe4IjvP2HNrop7nQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
-    dev: true
 
   /nanomatch/1.2.13:
     resolution: {integrity: sha512-fpoe2T0RbHwBTBUOftAfBPaDEi06ufaUai0mE6Yn1kacc3SnTErfb/h+X94VXzI64rKFHYImXSvdwGGCmwOqCA==}
@@ -5377,36 +5393,50 @@ packages:
     resolution: {integrity: sha512-daZ80A81I3/9lIydI44motWe6n59kRBfNzTuS2bfzVh1nAXi667TOTWWtatxyG+fwgNUiagSj/CWZwRRbevJIg==}
     dev: true
 
-  github.com/chlbri/core-promises/8629abdc7704b383e90a407269581648add9656e_zod@3.11.6:
-    resolution: {tarball: https://codeload.github.com/chlbri/core-promises/tar.gz/8629abdc7704b383e90a407269581648add9656e}
-    id: github.com/chlbri/core-promises/8629abdc7704b383e90a407269581648add9656e
+  github.com/chlbri/core-promises/24185b774bd321e9176c991f1d39ac6c4fc9f34d_1b3125c42a768499b321738d48192baf:
+    resolution: {tarball: https://codeload.github.com/chlbri/core-promises/tar.gz/24185b774bd321e9176c991f1d39ac6c4fc9f34d}
+    id: github.com/chlbri/core-promises/24185b774bd321e9176c991f1d39ac6c4fc9f34d
     name: '@core/promises'
-    version: 0.0.32
+    version: 0.0.34-messages
     peerDependencies:
+      dequal: ^2.0.2
+      immer: ^9.0.6
+      nanoid: ^3.1.30
       zod: 3.10.1
     dependencies:
       dequal: 2.0.2
+      immer: 9.0.6
+      nanoid: 3.1.30
       zod: 3.11.6
     dev: true
 
-  github.com/chlbri/core-test/8fa8e062566ebaaff45dcc1b698311eaa84619ed_c48e05cf14400364ab00aa0375c6a737:
-    resolution: {tarball: https://codeload.github.com/chlbri/core-test/tar.gz/8fa8e062566ebaaff45dcc1b698311eaa84619ed}
-    id: github.com/chlbri/core-test/8fa8e062566ebaaff45dcc1b698311eaa84619ed
+  github.com/chlbri/core-test/82b44db70a40ddc5df124753125866519dc19f94_65daf11ba3e57c23c7c0f3bd1fc3d98f:
+    resolution: {tarball: https://codeload.github.com/chlbri/core-test/tar.gz/82b44db70a40ddc5df124753125866519dc19f94}
+    id: github.com/chlbri/core-test/82b44db70a40ddc5df124753125866519dc19f94
     name: gitpod-typescript
-    version: 0.0.11
+    version: 0.0.18
     peerDependencies:
-      core: https://github.com/chlbri/core.git#publish
+      core: github:chlbri/core#v0.0.22
       dequal: ^2.0.2
+      mock-stdin: ^1.0.0
       nanoid: ^3.1.30
+      object.omit: ^3.0.0
+      zod: ^3.11.6
     dependencies:
-      core: github.com/chlbri/core/3711f58f7aca16f732ec36543ece96176463a6bf
+      core: github.com/chlbri/core/732d2ba7642c4ded60b6611f5667082a47327122
       dequal: 2.0.2
+      mock-stdin: 1.0.0
       nanoid: 3.1.30
+      object.omit: 3.0.0
+      zod: 3.11.6
     dev: true
 
-  github.com/chlbri/core/3711f58f7aca16f732ec36543ece96176463a6bf:
-    resolution: {tarball: https://codeload.github.com/chlbri/core/tar.gz/3711f58f7aca16f732ec36543ece96176463a6bf}
-    name: '@core/core'
-    version: 0.0.2
+  github.com/chlbri/core/732d2ba7642c4ded60b6611f5667082a47327122:
+    resolution: {tarball: https://codeload.github.com/chlbri/core/tar.gz/732d2ba7642c4ded60b6611f5667082a47327122}
+    name: '@core_chlbri/core'
+    version: 0.1.1-dc
     engines: {node: '>=12'}
+    dependencies:
+      dequal: 2.0.2
+      nanoid: 3.1.30
     dev: true
