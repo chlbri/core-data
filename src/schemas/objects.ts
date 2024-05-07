@@ -22,12 +22,30 @@ export const timestampsSchema = z.object({
   _deletedAt: z.union([z.literal(false), z.date()]),
 });
 
-export const entitySchema = z.object({
+const _entitySchema = z.object({
   _id: z.string(),
   ...timestampsSchema.shape,
 });
 
-export const actorSchema = entitySchema.extend({
+export function entitySchema<T extends []>(
+  ...shape: T
+): typeof _entitySchema;
+
+export function entitySchema<T extends [z.ZodRawShape]>(
+  ...shape: T
+): z.ZodObject<(typeof _entitySchema)['shape'] & T[0]>;
+
+export function entitySchema<T extends [z.ZodRawShape] | []>(
+  ...shapes: T
+) {
+  const shape = shapes[0];
+  if (shape) {
+    return _entitySchema.extend(shape);
+  }
+  return _entitySchema;
+}
+
+export const actorSchema = entitySchema().extend({
   // ip: string().url().optional(),
   __privateKey: z.string(),
   permissions: z.string().array(),
@@ -50,7 +68,7 @@ export const humanSchema = z.object({
   phoneNumber: phoneNumber.array().optional(),
 });
 
-export const user = entitySchema.extend(loginSchema.shape);
+export const user = entitySchema().extend(loginSchema.shape);
 
 // #region Generics
 export const withoutID = (shape: z.ZodRawShape) =>

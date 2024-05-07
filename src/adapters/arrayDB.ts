@@ -1,10 +1,17 @@
-import { ReturnData } from '@bemedev/return-data';
-import { dequal } from 'dequal/lite';
-import { produce } from 'immer';
+import { ReturnData, ServerErrorStatus } from '@bemedev/return-data';
+import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
-import { CollectionPermissions } from '../entities';
-import { isNotClause } from '../functions';
-import type { DataSearchOperations, SearchOperation } from '../types/dso';
+import { merge } from 'ts-deepmerge';
+import { z } from 'zod';
+import {
+  Actor,
+  CollectionPermissions,
+  CollectionWithPermissions,
+  Re,
+  TimeStamps,
+  WithEntity,
+  WithId,
+} from '../entities';
 import {
   Count,
   CountAll,
@@ -43,282 +50,269 @@ import {
   UpdateOneById,
   UpsertMany,
   UpsertOne,
-  WI,
-  WO,
+  WT,
 } from '../types/repo';
 import { Entity } from './../entities';
-
-export function inStreamSearchAdapterKey<T>(
-  op: SearchOperation<T>,
-): (arg: T) => boolean {
-  // if (!op) return () => true;
-  const keys = Object.keys(op);
-
-  if (keys.every(key => !key.includes('$'))) {
-    return (arg: T) => {
-      if (
-        typeof arg === 'string' ||
-        typeof arg === 'number' ||
-        typeof arg === 'bigint' ||
-        typeof arg === 'boolean' ||
-        typeof arg === 'undefined' ||
-        Object.keys(keys) === Object.keys(arg as any)
-      ) {
-        return dequal(op, arg);
-      }
-      return inStreamSearchAdapter(op as any)(arg);
-    };
-  }
-
-  const entries = Object.entries(op);
-
-  const switcherFunctionsByKeys = ([key, value]: [string, any]) => {
-    switch (key) {
-      // #region Object
-      case '$exists':
-        return (arg: T) => {
-          const sw = arg !== undefined && arg !== null;
-          return value ? sw : !sw;
-        };
-      case '$eq':
-        return (arg: T) => dequal(arg, value);
-      case '$ne':
-        return (arg: T) => !dequal(arg, value);
-      case '$in':
-        return (arg: T) => {
-          return (value as any[]).some(val => dequal(arg, val));
-        };
-      case '$nin':
-        return (arg: T) => {
-          return (value as any[]).every(val => !dequal(arg, val));
-        };
-      // #endregion
-
-      // #region Number
-      case '$gt':
-        return (arg: T) => arg > value;
-      case '$gte':
-        return (arg: T) => arg >= value;
-      case '$lt':
-        return (arg: T) => arg < value;
-      case '$lte':
-        return (arg: T) => arg <= value;
-      case '$mod':
-        return (arg: T) => (arg as unknown as number) % value === 0;
-      // #endregion
-
-      // #region String
-      case '$cts':
-        return (arg: T) => (arg as unknown as string).includes(value);
-      case '$sw':
-        return (arg: T) =>
-          (arg as unknown as string).trim().startsWith(value);
-      case '$ew':
-        return (arg: T) =>
-          (arg as unknown as string).trim().endsWith(value);
-      // #endregion
-
-      // #region Array
-      case '$all':
-        return (arg: T) =>
-          (arg as unknown as string[]).every(val => dequal(val, value));
-      case '$em':
-        return (arg: T) =>
-          (arg as unknown as string[]).some(val => dequal(val, value));
-      case '$size':
-        return (arg: T) => (arg as unknown as string[]).length === value;
-      // #endregion
-
-      // #region Logicals
-      case '$and':
-        return (arg: T) => {
-          const val = value as SearchOperation<T>[];
-          const out = val.reduce((acc, curr) => {
-            const search = inStreamSearchAdapterKey(curr)(arg);
-            return acc && search;
-          }, true);
-          return out;
-        };
-      case '$not':
-        return (arg: T) => {
-          const val = value as SearchOperation<T>;
-          const out = !inStreamSearchAdapterKey(val)(arg);
-          return out;
-        };
-      case '$nor':
-        return (arg: T) => {
-          const val = value as SearchOperation<T>[];
-          const out = val.reduce((acc, curr) => {
-            const search = inStreamSearchAdapterKey(curr)(arg);
-            return acc && !search;
-          }, true);
-          return out;
-        };
-      case '$or':
-        return (arg: T) => {
-          const values = value as SearchOperation<T>[];
-          let out = false;
-          for (const curr of values) {
-            out = inStreamSearchAdapterKey(curr)(arg);
-            if (out) break;
-          }
-          return out;
-        };
-      // #endregion
-
-      default:
-        return () => false;
-    }
-  };
-
-  const funcs = entries.map(switcherFunctionsByKeys);
-
-  const resolver = (arg: T) => {
-    return funcs.reduce((acc, curr) => acc && curr(arg), true);
-  };
-
-  return resolver;
-}
-
-export function inStreamSearchAdapter<T>(
-  filter: DataSearchOperations<T>,
-): (val: any) => boolean {
-  const funcs: ((arg: T) => boolean)[] = [];
-
-  if (isNotClause(filter)) {
-    const entries = Object.entries(filter.$not) as [
-      keyof T,
-      SearchOperation<T[keyof T]>,
-    ][];
-
-    entries.forEach(([key, value]) => {
-      if (value) {
-        const func = (arg: T) => {
-          return inStreamSearchAdapterKey(value)((arg as any)[key]);
-        };
-        funcs.push(func);
-      }
-    });
-  } else {
-    const entries = Object.entries(filter) as [
-      keyof T,
-      SearchOperation<T[keyof T]>,
-    ][];
-
-    entries.forEach(([key, value]) => {
-      if (value) {
-        const func = (arg: T) => {
-          return inStreamSearchAdapterKey(value)(arg[key]);
-        };
-        funcs.push(func);
-      }
-    });
-  }
-
-  const resolver = (arg: any) => {
-    return funcs.reduce((acc, curr) => acc && curr(arg as any), true);
-  };
-  return resolver;
-}
+import { inStreamSearchAdapter } from './arrayDB.functions';
 
 // type Permission<T extends Entity> = {
 //   permissionReader: PermissionsReaderOne<T>;
 // };
 
-export class ArrayDB<T extends Entity> implements Repository<T> {
-  /* , Permission<T> */
-  constructor(
-    private _db: WI<T>[],
-    private permissions: CollectionPermissions,
-  ) {}
+export type CollectionArgs<T> = {
+  _schema: z.ZodType<T>;
+  _actors?: Actor[];
+  permissions?: CollectionPermissions;
+  checkPermissions?: boolean;
+  test?: boolean;
+};
 
-  __update = (payload: string[], update: WO<T>) => {
-    const __db = produce([...this._db], draft => {
+export class CollectionDB<T extends WT<Re>>
+  implements Repository<Entity & T>
+{
+  /* , Permission<T> */
+  private _collection: WithEntity<T>[];
+  private test: boolean;
+  private _colPermissions: CollectionWithPermissions<T>[];
+  private _schema: z.ZodType<T>;
+  private _actors: Actor[] = [];
+  private permissions?: CollectionPermissions;
+  private checkPermissions: boolean;
+
+  get collection() {
+    if (this.test) {
+      return this._collection;
+    }
+    return [];
+  }
+
+  __update = (payload: string[], update: WT<T>) => {
+    const __db = produce(this._collection, draft => {
       payload.forEach(id => {
         const index = draft.findIndex((data: any) => data._id === id);
         if (index !== -1) {
-          (draft[index] as any).login = (update as any).login;
+          draft[index] = castDraft(
+            merge(draft[index], update) as WithEntity<T>,
+          );
         }
       });
     });
     this.rinitDB();
-    this._db.push(...__db);
-    this._db; //?
+    this._collection.push(...__db);
   };
 
+  __seed = async (...arr: WithEntity<T>[]) => {
+    if (this.test) this._collection.push(...arr);
+  };
+
+  constructor({
+    _schema,
+    _actors,
+    permissions,
+    checkPermissions,
+    test = true,
+  }: CollectionArgs<T>) {
+    // #region Constructore Variables
+    this._schema = _schema;
+    if (_actors) this._actors.push(..._actors);
+    this.permissions = permissions;
+    this.checkPermissions = !!checkPermissions;
+    this.test = !!test;
+    // #endregion
+
+    this._collection = [];
+    this._colPermissions = [];
+  }
+
+  get canCheckPermissions() {
+    return (
+      this.checkPermissions &&
+      !!this.permissions &&
+      this._actors.length > 0
+    );
+  }
+
+  private getActor = (ID: string) => {
+    return this._actors.find(({ actorID }) => ID === actorID);
+  };
+
+  private canCreate = (actorID: string) => {
+    if (this.canCheckPermissions) {
+      const actor = this.getActor(actorID);
+      if (!actor) return false;
+      const superAdmin = actor.superAdmin === true;
+      if (superAdmin) return true;
+
+      const permissions = actor.permissions;
+      if (!permissions) return false;
+      if (!this.permissions) return false;
+      return permissions.includes(this.permissions.__create);
+    }
+    return true;
+  };
+
+  private canRead = (actorID: string) => {
+    if (this.canCheckPermissions) {
+      const actor = this.getActor(actorID);
+      if (!actor) return false;
+      const superAdmin = actor.superAdmin === true;
+      if (superAdmin) return true;
+
+      const permissions = actor.permissions;
+      if (!permissions) return false;
+      if (!this.permissions) return false;
+      return permissions.includes(this.permissions.__create);
+    }
+    return true;
+  };
+
+  private canDeleteDoc = (actorID: string) => {
+    if (this.canCheckPermissions) {
+      const actor = this.getActor(actorID);
+      if (!actor) return false;
+      const superAdmin = actor.superAdmin === true;
+      if (superAdmin) return true;
+
+      const permissions = actor.permissions;
+      if (!permissions) return false;
+      if (!this.permissions) return false;
+      return permissions.includes(this.permissions.__remove);
+    }
+    return true;
+  };
+
+  private generateError = (
+    status: ServerErrorStatus,
+    ...messages: string[]
+  ) => {
+    return new ReturnData({ status, messages });
+  };
+
+  get schema() {
+    return this._schema;
+  }
+
   rinitDB() {
-    this._db.length = 0;
+    this._collection.length = 0;
   }
 
   get length() {
-    return this._db.length;
+    return this._collection.length;
   }
   //TODO reset all
 
   // #region Create
 
-  createMany: CreateMany<T> = async ({ data: datas, options }) => {
-    const inputs = datas.map(data => ({
-      _id: nanoid(),
+  static generateCreateTimestamps = (actorID: string): TimeStamps => ({
+    _created: {
+      by: actorID,
+      at: new Date(),
+    },
+    _updated: {
+      by: actorID,
+      at: new Date(),
+    },
+    _deleted: false,
+  });
+
+  static generateCreate<T extends Re>(
+    actorID: string,
+    data: WT<T>,
+    _id = nanoid(),
+  ) {
+    const timestamps = this.generateCreateTimestamps(actorID);
+    const input = {
+      _id,
+      ...timestamps,
       ...data,
-    })) as WI<T>[];
-    if (options && options.limit && options.limit < datas.length) {
+    } as WithEntity<T>;
+    return input;
+  }
+
+  createMany: CreateMany<T> = async ({
+    actorID,
+    data: _datas,
+    options,
+  }) => {
+    const canCreate = this.canCreate(actorID);
+    if (!canCreate) {
+      return this.generateError(510, 'This actor cannot create elements');
+    }
+    const inputs = _datas.map(data =>
+      CollectionDB.generateCreate(actorID, data),
+    );
+    if (options && options.limit && options.limit < _datas.length) {
       const limit = options.limit;
       const _inputs = inputs.slice(0, limit);
-      this._db.push(..._inputs);
+      this._collection.push(..._inputs);
       const payload = _inputs.map(input => input._id);
       const messages = ['Limit exceeded'];
       const rd = new ReturnData({ status: 110, payload, messages });
       return rd;
     }
 
-    this._db.push(...inputs);
+    this._collection.push(...inputs);
     const payload = inputs.map(input => input._id) as string[];
     const rd = new ReturnData({ status: 210, payload });
     return rd;
   };
 
-  createOne: CreateOne<T> = async ({ data }) => {
-    const input = {
-      _id: nanoid(),
-      ...data,
-    } as WI<T>;
+  createOne: CreateOne<T> = async ({ data, actorID }) => {
+    const canCreate = this.canCreate(actorID);
+    if (!canCreate) {
+      return this.generateError(511, 'This actor cannot create elements');
+    }
+    const input = CollectionDB.generateCreate(actorID, data);
 
-    this._db.push(input);
+    this._collection.push(input);
     const payload = input._id;
     const rd = new ReturnData({ status: 211, payload });
     return rd;
   };
 
-  upsertOne: UpsertOne<T> = async ({ _id, data }) => {
+  upsertOne: UpsertOne<T> = async ({ actorID, id: _id, data }) => {
+    const canCreate = this.canCreate(actorID);
+    if (!canCreate) {
+      return this.generateError(512, 'This actor cannot create elements');
+    }
     const _filter = inStreamSearchAdapter({ _id, ...data } as any);
-    const _exist = this._db.find(_filter);
+    const _exist = this._collection.find(_filter);
     if (_exist) {
       const messages = ['Already exists'];
       return new ReturnData({ status: 312, payload: _id, messages });
     } else {
-      this._db.push({ _id: _id ?? nanoid(), ...data });
+      const input = CollectionDB.generateCreate(actorID, data, _id);
+      this._collection.push(input);
       return new ReturnData({ status: 212, payload: _id });
     }
   };
 
-  upsertMany: UpsertMany<T> = async ({ upserts, options }) => {
+  upsertMany: UpsertMany<T> = async ({ actorID, upserts, options }) => {
+    const canCreate = this.canCreate(actorID);
+    if (!canCreate) {
+      return this.generateError(513, 'This actor cannot create elements');
+    }
     const inputs = upserts.map(({ _id, data }) => ({
-      _id,
+      _id: _id ?? nanoid(),
       ...data,
-    })) as WI<T>[];
+    })) as WithId<WT<T>>[];
     const alreadyExists: string[] = [];
     if (options && options.limit && options.limit < upserts.length) {
       const limit = options.limit;
-      const _inputs = inputs.slice(0, limit).map(input => {
-        const _filter = inStreamSearchAdapter(input as any);
-        const _exist = this._db.find(_filter)?._id;
+      const _inputs = inputs.slice(0, limit).map(({ _id, ...data }) => {
+        const _filter = inStreamSearchAdapter(data as any);
+        const _exist = this._collection.find(_filter)?._id;
         if (_exist) {
           alreadyExists.push(_exist);
         } else {
-          this._db.push({ ...input, _id: input._id ?? nanoid() });
+          const _input = CollectionDB.generateCreate<T>(
+            actorID,
+            data as any,
+            _id,
+          );
+          this._collection.push(_input);
         }
-        return input;
+        return { _id, ...data };
       });
       if (alreadyExists.length > 0) {
         return new ReturnData({
@@ -334,16 +328,20 @@ export class ArrayDB<T extends Entity> implements Repository<T> {
       }
     }
 
-    inputs.forEach(input => {
-      const _filter = inStreamSearchAdapter(input as any);
-      const _exist = this._db.find(_filter)?._id;
+    inputs.forEach(({ _id, ...data }) => {
+      const _exist = this._collection.find(data => data._id === _id)?._id;
 
       if (_exist) {
         alreadyExists.push(_exist);
       } else {
-        this._db.push({ ...input, _id: input._id ?? nanoid() });
+        const _input = CollectionDB.generateCreate<T>(
+          actorID,
+          data as any,
+          _id,
+        );
+        this._collection.push(_input);
       }
-      return input;
+      return { _id, ...data };
     });
 
     if (alreadyExists.length > 0) {
@@ -364,84 +362,90 @@ export class ArrayDB<T extends Entity> implements Repository<T> {
 
   // #region Read
 
-  readAll: ReadAll<T> = async options => {
-    if (!this._db.length) {
+  readAll: ReadAll<T> = async (actorID, options) => {
+    const isSuperAdmin = this.getActor(actorID)?.superAdmin;
+    if (!isSuperAdmin) {
+      return this.generateError(520, 'Only SuperAdmin can read all data');
+    }
+    if (!this._collection.length) {
       return new ReturnData({
-        status: 514,
+        status: 520,
         messages: ['Empty'],
       });
     }
 
     const check2 =
-      !!options && options.limit && options.limit < this._db.length;
+      !!options &&
+      options.limit &&
+      options.limit < this._collection.length;
 
     if (check2) {
       return new ReturnData({
-        status: 314,
-        payload: this._db.slice(0, options.limit),
+        status: 320,
+        payload: this._collection.slice(0, options.limit),
         messages: ['Limit Reached'],
       });
     }
 
     return new ReturnData({
-      status: 214,
-      payload: this._db.slice(0, options?.limit),
+      status: 220,
+      payload: this._collection.slice(0, options?.limit),
     });
   };
 
-  readMany: ReadMany<T> = async ({ filters, options }) => {
-    if (!this._db.length) {
-      return new ReturnData({
-        status: 515,
-        messages: ['Empty'],
-      });
+  readMany: ReadMany<T> = async ({ actorID, filters, options }) => {
+    const actor = this.getActor(actorID);
+    if (!this._collection.length) {
+      return this.generateError(521, 'Empty');
     }
 
-    const reads = this._db.filter(inStreamSearchAdapter(filters));
+    const reads = this._collection.filter(inStreamSearchAdapter(filters));
     if (!reads.length) {
       return new ReturnData({
-        status: 315,
+        status: 321,
         messages: ['Empty'],
       });
     }
     if (options && options.limit && options.limit < reads.length) {
       return new ReturnData({
-        status: 115,
+        status: 121,
         payload: reads.slice(0, options.limit),
         messages: ['Limit Reached'],
       });
     }
     return new ReturnData({
-      status: 215,
+      status: 221,
       payload: reads,
     });
   };
 
-  readManyByIds: ReadManyByIds<T> = async ({ ids, filters, options }) => {
-    if (!this._db.length) {
-      return new ReturnData({
-        status: 516,
-        messages: ['Empty'],
-      });
+  readManyByIds: ReadManyByIds<T> = async ({
+    actorID,
+    ids,
+    filters,
+    options,
+  }) => {
+    if (!this._collection.length) {
+      this.generateError(522, 'Empty');
     }
 
-    const reads1 = this._db.filter(data => ids.includes(data._id));
+    const reads1 = this._collection.filter(data => ids.includes(data._id));
     if (!reads1.length) {
       return new ReturnData({
-        status: 316,
-        messages: ['Empty'],
+        status: 322,
+        messages: ['Empty request'],
       });
     }
     if (!filters) {
       if (options && options.limit && options.limit < reads1.length) {
         return new ReturnData({
-          status: 116,
+          status: 122,
           payload: reads1.slice(0, options.limit),
           messages: ['Limit Reached'],
         });
       } else {
         return new ReturnData({
-          status: 216,
+          status: 222,
           payload: reads1,
         });
       }
@@ -449,119 +453,126 @@ export class ArrayDB<T extends Entity> implements Repository<T> {
     const reads2 = reads1.filter(inStreamSearchAdapter(filters));
     if (!reads2.length) {
       return new ReturnData({
-        status: 316,
+        status: 322,
         messages: ['Filters kill data'],
       });
     }
-    if (options && options.limit && options.limit < reads2.length) {
-      return new ReturnData({
-        status: 116,
-        payload: reads2.slice(0, options.limit),
-        messages: ['Limit Reached'],
-      });
-    }
+
     if (reads2.length < reads1.length) {
       return new ReturnData({
-        status: 116,
+        status: 122,
         payload: reads2,
         messages: ['Filters slice datas'],
       });
     }
     return new ReturnData({
-      status: 216,
-      payload: reads1,
+      status: 222,
+      payload: reads2,
     });
   };
 
-  readOne: ReadOne<T> = async ({ filters }) => {
-    const payload = this._db.find(inStreamSearchAdapter(filters));
-    if (payload) {
-      return new ReturnData({ status: 217, payload });
+  readOne: ReadOne<T> = async ({ actorID, filters }) => {
+    if (!this._collection.length) {
+      return this.generateError(523, 'Empty');
     }
-    return new ReturnData({ status: 517, messages: ['NotFound'] });
+    const payload = this._collection.find(inStreamSearchAdapter(filters));
+    if (payload) {
+      return new ReturnData({ status: 223, payload });
+    }
+    return new ReturnData({ status: 523, messages: ['NotFound'] });
   };
 
-  readOneById: ReadOneById<T> = async ({ _id, filters }) => {
-    if (!this._db.length) {
-      return new ReturnData({
-        status: 518,
-        messages: ['Empty'],
-      });
+  readOneById: ReadOneById<T> = async ({ actorID, id, filters }) => {
+    if (!this._collection.length) {
+      return this.generateError(524, 'Empty');
     }
-    const exits1 = this._db.find(data => data._id === _id);
+
+    const exits1 = this._collection.find(data => data._id === id);
     if (!filters) {
       if (!exits1) {
-        return new ReturnData({ status: 518, messages: ['NotFound'] });
-      } else return new ReturnData({ status: 218, payload: exits1 });
+        return new ReturnData({ status: 524, messages: ['NotFound'] });
+      } else return new ReturnData({ status: 224, payload: exits1 });
     }
-    const exists2 = this._db
-      .filter(data => data._id === _id)
+    const exists2 = this._collection
+      .filter(data => data._id === id)
       .find(inStreamSearchAdapter(filters));
 
     if (!exists2) {
       return new ReturnData({
-        status: 318,
+        status: 324,
         messages: exits1 ? ['Not found'] : ['Filters kill data'],
       });
     }
     return new ReturnData({ status: 218, payload: exists2 });
   };
 
-  countAll: CountAll = async () => {
-    const out = this._db.length;
+  countAll: CountAll = async actorID => {
+    const out = this._collection.length;
     if (out <= 0) {
-      return new ReturnData({ status: 519, messages: ['Empty'] });
+      return this.generateError(525, 'Empty');
     }
     return new ReturnData({ status: 219, payload: out });
   };
 
-  count: Count<T> = async ({ filters, options }) => {
-    const payload = this._db.filter(inStreamSearchAdapter(filters)).length;
+  count: Count<T> = async ({ actorID, filters, options }) => {
+    if (!this._collection.length) {
+      return this.generateError(526, 'Empty');
+    }
+
+    const payload = this._collection.filter(
+      inStreamSearchAdapter(filters),
+    ).length;
     if (payload <= 0) {
-      return new ReturnData({ status: 520, messages: ['Empty'] });
+      return new ReturnData({ status: 326, messages: ['Empty'] });
     }
     const limit = options?.limit;
     if (limit && limit < payload) {
       return new ReturnData({
-        status: 120,
+        status: 126,
         payload: limit,
         messages: ['Limit Reached'],
       });
     }
-    return new ReturnData({ status: 220, payload });
+    return new ReturnData({ status: 226, payload });
   };
 
   // #endregion
 
-  updateAll: UpdateAll<T> = async ({ data, options }) => {
-    if (!this._db.length) {
-      return new ReturnData({ status: 521, messages: ['Empty'] });
+  updateAll: UpdateAll<T> = async ({ actorID, data, options }) => {
+    if (!this._collection.length) {
+      return this.generateError(527, 'Empty');
     }
-    const db = [...this._db];
+
+    const db = [...this._collection];
     const limit = options?.limit;
     const inputs = db
       .slice(0, limit)
       .map(_data => ({ ..._data, ...data }));
-    if (limit && limit < db.length) {
-      this._db.length = 0;
-      this._db.push(...inputs);
+    if (limit && limit <= db.length) {
+      this._collection.length = 0;
+      this._collection.push(...inputs);
       return new ReturnData({
-        status: 121,
+        status: 127,
         payload: inputs.map(input => input._id),
         messages: ['Limit Reached'],
       });
     }
     return new ReturnData({
-      status: 221,
+      status: 227,
       payload: inputs.map(input => input._id),
     });
   };
 
-  updateMany: UpdateMany<T> = async ({ filters, data, options }) => {
-    if (!this._db.length) {
-      return new ReturnData({ status: 522, messages: ['Empty'] });
+  updateMany: UpdateMany<T> = async ({
+    actorID,
+    filters,
+    data,
+    options,
+  }) => {
+    if (!this._collection.length) {
+      return this.generateError(528, 'Empty');
     }
-    const db = [...this._db];
+    const db = [...this._collection];
 
     const _filter = inStreamSearchAdapter(filters);
     const limit = options?.limit;
@@ -570,13 +581,13 @@ export class ArrayDB<T extends Entity> implements Repository<T> {
     const payload = inputs.slice(0, limit).map(input => input._id);
     if (!inputs.length) {
       return new ReturnData({
-        status: 322,
+        status: 328,
         messages: ['Filters kill data'],
       });
     }
 
     if (limit && limit < inputs.length) {
-      this.__update(payload /*?*/, data);
+      this.__update(payload, data);
       return new ReturnData({
         status: 122,
         payload,
@@ -595,10 +606,10 @@ export class ArrayDB<T extends Entity> implements Repository<T> {
     data,
     options,
   }) => {
-    if (!this._db.length) {
+    if (!this._collection.length) {
       return new ReturnData({ status: 523, messages: ['Empty'] });
     }
-    const db = [...this._db];
+    const db = [...this._collection];
     const limit = options?.limit;
 
     // const mapper = (_data: WI<T>) => ({ ..._data, ...data });
@@ -615,7 +626,7 @@ export class ArrayDB<T extends Entity> implements Repository<T> {
       const payload = inputs1.slice(0, limit).map(input => input._id);
 
       this.__update(payload, data);
-      this._db; //?
+      this._collection; //?
       if (limit && limit < inputs1.length) {
         return new ReturnData({
           status: 123,

@@ -1,33 +1,58 @@
-import {
-  collectionPermissionsShape,
-  entitySchema,
-  permissionsShape,
-  timestampsSchema,
-} from './schemas/objects';
-import { object, TypeOf } from 'zod';
+export type TimeStamps = {
+  _created: { by: string; at: Date };
+  _updated: { by: string; at: Date };
+  _deleted: false | { by: string; at: Date };
+};
 
-export type Entity = TypeOf<typeof entitySchema>;
+export type Entity = {
+  _id: string;
+} & TimeStamps;
+
+export type WithEntity<T extends Re> = Entity & T;
+
 export type WithoutId<T> = Omit<T, '_id'>;
 
-export type WithId<T> = WithoutId<T> & { _id: string };
+export type WithId<T> = T & { _id: string };
 
-export type TimeStamps = TypeOf<typeof timestampsSchema>;
+export type WithoutTimeStamps<T> = Omit<T, keyof TimeStamps | '_id'>;
 
-export type WithoutTimeStamps<T> = Omit<T, keyof TimeStamps>;
+export type PermissionsKeys = '__read' | '__update' | '__remove';
+export type Permissions = Record<PermissionsKeys, string>;
 
-const perm = object(permissionsShape);
-const colPerm = object(collectionPermissionsShape);
+export type PermissionsArray = Record<
+  PermissionsKeys,
+  Permissions[PermissionsKeys][]
+>;
 
-export type AtomicData<T> = {
-  data: T;
-} & TypeOf<typeof perm>;
+export type Re = Record<string, unknown>;
 
-export type CollectionPermissions = TypeOf<typeof colPerm>;
+export type CollectionPermissions = Permissions & {
+  __create: string;
+};
 
-export type AtomicObject<T extends Entity> = {
-  [key in keyof WithoutId<T>]: AtomicData<T[key]>;
-} & { _id: T['_id'] };
+export type DeepRequired<T> = {
+  [P in keyof T]-?: DeepRequired<T[P]>;
+};
 
-type UnionPerm = keyof TypeOf<typeof perm>;
+export type _CollectionWithPermissions<T extends Re> = {
+  [key in keyof T]: T[key] extends Re
+    ? _CollectionWithPermissions<T[key]>
+    : Permissions;
+};
 
-export type WithoutPermissions<T> = Omit<T, UnionPerm>;
+export type TimeStampsPermissions = Record<keyof TimeStamps, Permissions>;
+
+export type CollectionWithPermissions<T> = _CollectionWithPermissions<
+  DeepRequired<WithoutTimeStamps<T>>
+> & {
+  _id: string;
+} & TimeStampsPermissions;
+
+export type Actor =
+  | { actorID: string; superAdmin: true }
+  | {
+      actorID: string;
+      privateKey: string;
+      permissions: string[];
+      superAdmin?: false;
+    };
