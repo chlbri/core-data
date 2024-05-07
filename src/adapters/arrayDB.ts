@@ -152,17 +152,7 @@ export class CollectionDB<T extends WT<Re>>
   };
 
   private canRead = (actorID: string) => {
-    if (this.canCheckPermissions) {
-      const actor = this.getActor(actorID);
-      if (!actor) return false;
-      const superAdmin = actor.superAdmin === true;
-      if (superAdmin) return true;
-
-      const permissions = actor.permissions;
-      if (!permissions) return false;
-      if (!this.permissions) return false;
-      return permissions.includes(this.permissions.__create);
-    }
+    //TODO: to build
     return true;
   };
 
