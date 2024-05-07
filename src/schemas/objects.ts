@@ -1,101 +1,94 @@
-import {
-  literal,
-  union,
-  ZodRawShape,
-  array,
-  object,
-  string,
-  ZodObject,
-  ZodType,
-  date,
-  tuple,
-  number,
-} from 'zod';
+import { z } from 'zod';
 
 // #region Configuration
 // #region permissions
 export const permissionsShape = {
-  __read: array(string()),
-  __write: array(string()),
-  __remove: array(string()),
+  __read: z.string().array(),
+  __write: z.string().array(),
+  __remove: z.string().array(),
 };
 
 export const collectionPermissionsShape = {
-  __create: array(string()),
+  __create: z.string().array(),
   ...permissionsShape,
 };
+
+// #endregion
+// #endregion
+
+export const timestampsSchema = z.object({
+  _createdAt: z.date(),
+  _updatedAt: z.date(),
+  _deletedAt: z.union([z.literal(false), z.date()]),
+});
+
+export const entitySchema = z.object({
+  _id: z.string(),
+  ...timestampsSchema.shape,
+});
+
+export const actorSchema = entitySchema.extend({
+  // ip: string().url().optional(),
+  __privateKey: z.string(),
+  permissions: z.string().array(),
+});
+
+export const loginSchema = z.object({
+  login: z.string(),
+  password: z.string().min(6),
+});
+
+export const userSchema = z.object({ __privateKey: z.string() });
+
+export const phoneNumber = z.tuple([z.number().array(), z.number()]);
+
+export const humanSchema = z.object({
+  firstNames: z.string().array().optional(),
+  lastName: z.string().min(1).optional(),
+  bio: z.string().min(100).optional(),
+  mail: z.string().email().optional(),
+  phoneNumber: phoneNumber.array().optional(),
+});
+
+export const user = entitySchema.extend(loginSchema.shape);
+
+// #region Generics
+export const withoutID = (shape: z.ZodRawShape) =>
+  z.object(shape).omit({ _id: true });
 
 const perimissionsBools = {
   __read: true,
   __write: true,
   __remove: true,
 } as const;
-// #endregion
-// #endregion
 
-export const timestampsSchema = object({
-  _createdAt: date(),
-  _updatedAt: date(),
-  _deletedAt: union([literal(false), date()]),
-});
+type AddAny<T extends z.ZodRawShape, Arr extends string> = T &
+  Record<Arr, z.ZodTypeAny>;
 
-export const entitySchema = object({
-  _id: string(),
-  ...timestampsSchema.shape,
-});
+export function withoutPermissions<T extends z.ZodRawShape>(shape: T) {
+  const _shape = shape as AddAny<T, keyof typeof perimissionsBools>;
+  return z.object(_shape).omit(perimissionsBools);
+}
 
-export const actorSchema = object({
-  _id: entitySchema.shape._id,
-  ip: string().url().optional(),
-  permissions: array(string()),
-});
+export function withoutPassword<T extends z.ZodRawShape>(shape: T) {
+  const _shape = shape as AddAny<T, 'password'>;
+  return z.object(_shape).omit({
+    password: true,
+  });
+}
 
-export const loginSchema = object({
-  login: string(),
-  password: string().min(6),
-});
+export function withID<T extends z.ZodRawShape>(shape: T) {
+  return z.object(shape).extend({ _id: z.string() });
+}
 
-export const userSchema = object({ __privateKey: string() });
-
-export const humanSchema = object({
-  firstNames: array(string()).optional(),
-  lastName: string().min(1).optional(),
-});
-
-export const phoneNumber = tuple([array(number()), number()]);
-
-export const humanSchemaAdd = object({
-  ...humanSchema.shape,
-  bio: string().min(100).optional(),
-  mail: string().email().optional(),
-  phoneNumber: array(phoneNumber).optional(),
-});
-
-export const user = object({
-  ...entitySchema.shape,
-  __privateKey: string(),
-});
-// #region Generics
-export const withoutID = <T extends ZodRawShape>(shape: T) =>
-  object(shape).omit({ _id: true });
-
-export const withoutPermissions = <T extends ZodRawShape>(shape: T) =>
-  object(shape).omit(perimissionsBools);
-
-export const withoutPassword = <T extends ZodRawShape>(shape: T) =>
-  object(shape).omit({ password: true });
-
-export const withID = <T extends ZodRawShape>(shape: T) =>
-  object(shape).pick({ _id: true });
-
-export const atomicDataSchema = <T extends ZodRawShape | ZodType<any>>(
+export const atomicDataSchema = <T extends z.ZodRawShape | z.ZodTypeAny>(
   shape: T,
 ) => {
   const data = (
-    shape instanceof ZodType ? shape : object(shape)
-  ) as T extends ZodRawShape ? ZodObject<T> : T;
+    shape instanceof z.ZodType ? shape : z.object(shape)
+  ) as T extends z.ZodRawShape ? z.ZodObject<T> : T;
 
-  return object({
+  return z.object({
     data,
     ...permissionsShape,
   });

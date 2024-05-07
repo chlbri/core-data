@@ -1,15 +1,15 @@
-import { ReturnData } from 'core-promises';
+import { ReturnData } from '@bemedev/return-data';
 import { dequal } from 'dequal/lite';
+import { produce } from 'immer';
 import { nanoid } from 'nanoid';
 import { CollectionPermissions } from '../entities';
-import { produce } from 'immer';
 import { isNotClause } from '../functions';
+import type { DataSearchOperations, SearchOperation } from '../types/dso';
 import {
   Count,
   CountAll,
   CreateMany,
   CreateOne,
-  CRUD,
   DeleteAll,
   DeleteMany,
   DeleteManyByIds,
@@ -25,6 +25,7 @@ import {
   RemoveManyByIds,
   RemoveOne,
   RemoveOneById,
+  Repository,
   RetrieveAll,
   RetrieveMany,
   RetrieveManyByIds,
@@ -44,8 +45,7 @@ import {
   UpsertOne,
   WI,
   WO,
-} from '../types/crud';
-import type { DataSearchOperations, SearchOperation } from '../types/dso';
+} from '../types/repo';
 import { Entity } from './../entities';
 
 export function inStreamSearchAdapterKey<T>(
@@ -62,11 +62,11 @@ export function inStreamSearchAdapterKey<T>(
         typeof arg === 'bigint' ||
         typeof arg === 'boolean' ||
         typeof arg === 'undefined' ||
-        Object.keys(keys) === Object.keys(arg)
+        Object.keys(keys) === Object.keys(arg as any)
       ) {
         return dequal(op, arg);
       }
-      return inStreamSearchAdapter(op)(arg);
+      return inStreamSearchAdapter(op as any)(arg);
     };
   }
 
@@ -225,7 +225,7 @@ export function inStreamSearchAdapter<T>(
 //   permissionReader: PermissionsReaderOne<T>;
 // };
 
-export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
+export class ArrayDB<T extends Entity> implements Repository<T> {
   /* , Permission<T> */
   constructor(
     private _db: WI<T>[],
@@ -253,14 +253,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   get length() {
     return this._db.length;
   }
-
-  // readonly permissionReaderMany: PermissionsReaderMany<T> = dso => {
-  //   const datas = this._db.filter(inStreamSearchAdapter(dso));
-  //   const out = datas.map(getPermissions);
-  //   return out;
-  // };
-  // readonly permissionReaderOne: PermissionsReaderOne<T> = dso =>
-  //   this.permissionReaderMany(dso)[0];
+  //TODO reset all
 
   // #region Create
 
@@ -372,19 +365,24 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   // #region Read
 
   readAll: ReadAll<T> = async options => {
-    if (options && options.limit && options.limit < this._db.length) {
-      return new ReturnData({
-        status: 314,
-        payload: this._db.slice(0, options.limit),
-        messages: ['Limit Reached'],
-      });
-    }
     if (!this._db.length) {
       return new ReturnData({
         status: 514,
         messages: ['Empty'],
       });
     }
+
+    const check2 =
+      !!options && options.limit && options.limit < this._db.length;
+
+    if (check2) {
+      return new ReturnData({
+        status: 314,
+        payload: this._db.slice(0, options.limit),
+        messages: ['Limit Reached'],
+      });
+    }
+
     return new ReturnData({
       status: 214,
       payload: this._db.slice(0, options?.limit),
@@ -392,10 +390,17 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   };
 
   readMany: ReadMany<T> = async ({ filters, options }) => {
+    if (!this._db.length) {
+      return new ReturnData({
+        status: 515,
+        messages: ['Empty'],
+      });
+    }
+
     const reads = this._db.filter(inStreamSearchAdapter(filters));
     if (!reads.length) {
       return new ReturnData({
-        status: 515,
+        status: 315,
         messages: ['Empty'],
       });
     }
@@ -413,10 +418,17 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   };
 
   readManyByIds: ReadManyByIds<T> = async ({ ids, filters, options }) => {
+    if (!this._db.length) {
+      return new ReturnData({
+        status: 516,
+        messages: ['Empty'],
+      });
+    }
+
     const reads1 = this._db.filter(data => ids.includes(data._id));
     if (!reads1.length) {
       return new ReturnData({
-        status: 516,
+        status: 316,
         messages: ['Empty'],
       });
     }
@@ -437,7 +449,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     const reads2 = reads1.filter(inStreamSearchAdapter(filters));
     if (!reads2.length) {
       return new ReturnData({
-        status: 516,
+        status: 316,
         messages: ['Filters kill data'],
       });
     }
@@ -450,7 +462,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     }
     if (reads2.length < reads1.length) {
       return new ReturnData({
-        status: 316,
+        status: 116,
         payload: reads2,
         messages: ['Filters slice datas'],
       });
@@ -470,6 +482,12 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   };
 
   readOneById: ReadOneById<T> = async ({ _id, filters }) => {
+    if (!this._db.length) {
+      return new ReturnData({
+        status: 518,
+        messages: ['Empty'],
+      });
+    }
     const exits1 = this._db.find(data => data._id === _id);
     if (!filters) {
       if (!exits1) {
@@ -482,7 +500,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
 
     if (!exists2) {
       return new ReturnData({
-        status: 518,
+        status: 318,
         messages: exits1 ? ['Not found'] : ['Filters kill data'],
       });
     }
@@ -494,7 +512,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     if (out <= 0) {
       return new ReturnData({ status: 519, messages: ['Empty'] });
     }
-    return new ReturnData({ status: 219, payload: this._db.length });
+    return new ReturnData({ status: 219, payload: out });
   };
 
   count: Count<T> = async ({ filters, options }) => {
@@ -516,10 +534,10 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   // #endregion
 
   updateAll: UpdateAll<T> = async ({ data, options }) => {
-    const db = [...this._db];
-    if (!db.length) {
+    if (!this._db.length) {
       return new ReturnData({ status: 521, messages: ['Empty'] });
     }
+    const db = [...this._db];
     const limit = options?.limit;
     const inputs = db
       .slice(0, limit)
@@ -540,10 +558,10 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
   };
 
   updateMany: UpdateMany<T> = async ({ filters, data, options }) => {
-    const db = [...this._db];
-    if (!db.length) {
+    if (!this._db.length) {
       return new ReturnData({ status: 522, messages: ['Empty'] });
     }
+    const db = [...this._db];
 
     const _filter = inStreamSearchAdapter(filters);
     const limit = options?.limit;
@@ -552,7 +570,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     const payload = inputs.slice(0, limit).map(input => input._id);
     if (!inputs.length) {
       return new ReturnData({
-        status: 522,
+        status: 322,
         messages: ['Filters kill data'],
       });
     }
@@ -577,10 +595,10 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
     data,
     options,
   }) => {
-    const db = [...this._db];
-    if (!db.length) {
+    if (!this._db.length) {
       return new ReturnData({ status: 523, messages: ['Empty'] });
     }
+    const db = [...this._db];
     const limit = options?.limit;
 
     // const mapper = (_data: WI<T>) => ({ ..._data, ...data });
@@ -589,7 +607,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
 
     if (!inputs1.length) {
       return new ReturnData({
-        status: 523,
+        status: 323,
         messages: ['ids cannot reach DB'],
       });
     }
@@ -644,6 +662,7 @@ export class ArrayCRUD_DB<T extends Entity> implements CRUD<T> {
       payload,
     });
   };
+
   updateOne: UpdateOne<T> = async () => {
     throw undefined;
   };

@@ -1,272 +1,300 @@
-import type { NOmit } from 'core';
-import {} from 'core';
-import { PRD } from 'core-promises';
-import { PRDI, PRDIM, Projection, QueryOptions, WO } from '.';
-import { Entity } from '../entities';
+import type { RD, Status } from '@bemedev/return-data';
+import type { Objects, Pipe } from 'hotscript';
+
+import type {
+  Entity,
+  WithId,
+  WithoutId,
+  WithoutTimeStamps,
+} from '../entities';
 import type { DSO } from './dso';
+
+export type ErrorHandler = (error?: any) => never;
+
+export type QueryOptions = {
+  limit?: number;
+  errorHandler?: ErrorHandler;
+  after?: string;
+  before?: string;
+};
+
+export type PromiseRD<T> = Promise<RD<T, Status>>;
+
+export type StringKeys<T> = Pipe<T, [Objects.AllPaths]>;
+
+export type Projection<T> = { [key in StringKeys<T>]: boolean | 0 | 1 };
+
+export type DP<T> = Pipe<T, [Objects.PartialDeep]>;
+
+export type WI<T> = WithId<DP<T>>;
+export type WO<T> = WithoutId<DP<T>>;
+export type WT<T> = WithoutTimeStamps<T>;
+
+export type PRDI<T> = PromiseRD<WI<T>>;
+export type PRDIM<T> = PromiseRD<WI<T>[]>;
 
 // #region Create
 
-type CreateMany<T extends Entity> = (args: {
+export type CreateMany<T extends Entity> = (args: {
   actorID: string;
   data: WO<T>[];
   options?: QueryOptions;
   projection?: Projection<T>;
-}) => PRD<{
+}) => PromiseRD<{
   all: number;
   createds: number;
   ids: string[];
 }>;
 
-type CreateOne<T extends Entity> = (args: {
+export type CreateOne<T extends Entity> = (args: {
   actorID: string;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string>;
+}) => PromiseRD<string>;
 
-type UpsertOne<T extends Entity> = (args: {
+export type UpsertOne<T extends Entity> = (args: {
   _id?: string;
   actorID: string;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string>;
+}) => PromiseRD<string>;
 
-type UpsertMany<T extends Entity> = (args: {
+export type UpsertMany<T extends Entity> = (args: {
   actorID: string;
   upserts: { _id?: string; data: WO<T> }[];
   options?: QueryOptions;
-}) => PRD<string>;
+}) => PromiseRD<string>;
 
 // #endregion
 
 // #region Read
 
-type ReadAll<T extends Entity> = (
+export type ReadAll<T extends Entity> = (
   actorID: string,
   options?: QueryOptions,
 ) => PRDIM<T>;
 
-type ReadMany<T extends Entity> = (args: {
+export type ReadMany<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions;
 }) => PRDIM<T>;
 
-type ReadManyByIds<T extends Entity> = (args: {
+export type ReadManyByIds<T extends Entity> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions;
 }) => PRDIM<T>;
 
-type ReadOne<T extends Entity> = (args: {
+export type ReadOne<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
+  options?: Omit<QueryOptions, 'limit'>;
 }) => PRDI<T>;
 
-type ReadOneById<T extends Entity> = (args: {
+export type ReadOneById<T extends Entity> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
+  options?: Omit<QueryOptions, 'limit'>;
 }) => PRDI<T>;
 
 // #endregion
 
 // #region Count
 
-type CountAll = (actorID: string) => PRD<number>;
+export type CountAll = (actorID: string) => PromiseRD<number>;
 
-type Count<T extends Entity> = (args: {
+export type Count<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<number>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<number>;
 
 // #endregion
 
 // #region Update
 
-type UpdateAll<T extends Entity> = (args: {
+export type UpdateAll<T extends Entity> = (args: {
   actorID: string;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type UpdateMany<T extends Entity> = (args: {
+export type UpdateMany<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type UpdateManyByIds<T extends Entity> = (args: {
+export type UpdateManyByIds<T extends Entity> = (args: {
   actorID: string;
   ids: string[];
   data: WO<T>;
   filters?: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type UpdateOne<T extends Entity> = (args: {
+export type UpdateOne<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
-type UpdateOneById<T extends Entity> = (args: {
+export type UpdateOneById<T extends Entity> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
   data: WO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
 // #endregion
 
 // #region Set
 
-type SetAll<T extends Entity> = (args: {
+export type SetAll<T extends Entity> = (args: {
   actorID: string;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type SetMany<T extends Entity> = (args: {
+export type SetMany<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type SetManyByIds<T extends Entity> = (args: {
+export type SetManyByIds<T extends Entity> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   data: WO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type SetOne<T extends Entity> = (args: {
+export type SetOne<T extends Entity> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
-type SetOneById<T extends Entity> = (args: {
+export type SetOneById<T extends Entity> = (args: {
   actorID: string;
   id: string;
   data: WO<T>;
   filters?: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
 // #endregion
 
 // #region Delete
 
-type DeleteAll = (
+export type DeleteAll = (
   actorID: string,
   options?: QueryOptions,
-) => PRD<string[]>;
+) => PromiseRD<string[]>;
 
-type DeleteMany<T> = (args: {
+export type DeleteMany<T> = (args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type DeleteManyByIds<T> = (args: {
+export type DeleteManyByIds<T> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
-type DeleteOne<T> = (args: {
+}) => PromiseRD<string[]>;
+export type DeleteOne<T> = (args: {
   actorID: string;
   filters: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
-type DeleteOneById<T> = (args: {
+export type DeleteOneById<T> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
 // #endregion
 
 // #region Remove
 
-type RemoveAll = (
+export type RemoveAll = (
   actorID: string,
   options?: QueryOptions,
-) => PRD<string[]>;
+) => PromiseRD<string[]>;
 
-type RemoveMany<T> = (args: {
+export type RemoveMany<T> = (args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type RemoveManyByIds<T> = (args: {
+export type RemoveManyByIds<T> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type RemoveOne<T> = (args: {
+export type RemoveOne<T> = (args: {
   actorID: string;
   filters: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
-type RemoveOneById<T> = (args: {
+export type RemoveOneById<T> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
 // #endregion
 
 // #region Retrieve
 
-type RetrieveAll = (
+export type RetrieveAll = (
   actorID: string,
   options?: QueryOptions,
-) => PRD<string[]>;
+) => PromiseRD<string[]>;
 
-type RetrieveMany<T> = (args: {
+export type RetrieveMany<T> = (args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type RetrieveManyByIds<T> = (args: {
+export type RetrieveManyByIds<T> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions;
-}) => PRD<string[]>;
+}) => PromiseRD<string[]>;
 
-type RetrieveOne<T> = (args: {
+export type RetrieveOne<T> = (args: {
   actorID: string;
   filters: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
-type RetrieveOneById<T> = (args: {
+export type RetrieveOneById<T> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
-  options?: NOmit<QueryOptions, 'limit'>;
-}) => PRD<string>;
+  options?: Omit<QueryOptions, 'limit'>;
+}) => PromiseRD<string>;
 
 // #endregion
 

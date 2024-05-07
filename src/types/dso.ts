@@ -1,4 +1,4 @@
-import { TypeOf, ZodLiteral, ZodTuple } from 'zod';
+import { z } from 'zod';
 import {
   ARRAY_CLAUSES,
   COMMON_CLAUSES,
@@ -9,22 +9,24 @@ import {
   TYPE_ALIASES,
 } from '../schemas/strings';
 
-type inferUnion<T extends ZodTuple> = TypeOf<T>[number];
-
-// type inferKey<T extends ZodTuple, K extends inferUnion<T>> = K;
+type inferUnion<T extends z.ZodTuple> = z.TypeOf<T>[number];
 
 export type inferClause<
-  T extends ZodTuple | ZodLiteral<any>,
-  K extends T extends ZodTuple ? inferUnion<T> : TypeOf<T>,
+  T extends z.ZodTuple | z.ZodLiteral<any>,
+  K extends T extends z.ZodTuple ? inferUnion<T> : z.TypeOf<T>,
   R = any,
 > = {
   [key in K]: R;
 };
 
 // import { TupleOf } from './arrays';
-export type Equals = inferClause<typeof COMMON_CLAUSES, '$eq'>;
+export type Equals<T = any> = inferClause<typeof COMMON_CLAUSES, '$eq', T>;
 
-export type NotEquals = inferClause<typeof COMMON_CLAUSES, '$ne'>;
+export type NotEquals<T = any> = inferClause<
+  typeof COMMON_CLAUSES,
+  '$ne',
+  T
+>;
 
 export type ObjectIn<T = any> = inferClause<
   typeof COMMON_CLAUSES,
@@ -129,22 +131,25 @@ export type NotExistsProp = inferClause<
 >;
 
 type VSOAny<T = any> = Equals & NotEquals & ObjectIn<T> & ObjectNotIn<T>;
+
 type VSONumber = VSOAny<number> &
   GreaterThan &
   GreaterThanOrEquals &
   LessThan &
   LessThanOrEquals &
   Modulo;
+
 type VSOString = VSOAny<string> &
   StringContains &
   StartsWith &
   EndsWith &
   RegEx;
+
 export type ValueSearchOperations<T = string> = T extends number
   ? VSONumber
   : T extends string
-  ? VSOString
-  : VSOAny<T>;
+    ? VSOString
+    : VSOAny<T>;
 export type VSO<T = any> = ValueSearchOperations<T>;
 
 type LogH<T> = Partial<VSO<T> | LogicalClauses<T> | T>;
@@ -172,9 +177,6 @@ export type Or<T = any> = inferClause<
 >;
 
 export type LogicalClauses<T = any> = And<T> | Not<T> | Nor<T> | Or<T>;
-// export type Slice = {
-//   $slice: number | [number, number];
-// };
 
 export type SearchOperation<K = any> = K extends
   | string
@@ -199,12 +201,11 @@ export type SO<K> = SearchOperation<K>;
 export type ObjectSearchOperations<T = any> = {
   [key in keyof T]?: SearchOperation<T[key]>;
 };
+export type OSO<T = any> = ObjectSearchOperations<T>;
 
 export type DataSearchOperations<T = any> =
   | Not<T>
   | ObjectSearchOperations<T>;
-
-export type OSO<T = any> = ObjectSearchOperations<T>;
 export type DSO<T = any> = DataSearchOperations<T>;
 
 // TODO: Use zod to generate types

@@ -1,18 +1,18 @@
+import omit from 'object.omit';
 import { object, record } from 'zod';
 import { AtomicObject } from '.';
 import { AtomicData, Entity, WithoutPermissions } from './entities';
-import { entitySchema, PERMISSIONS_STRINGS } from './schemas';
+import { PERMISSIONS_STRINGS, entitySchema } from './schemas';
 import { permissionsShape } from './schemas/objects';
 import type { Not, VSO } from './types/dso';
 import { PermissionsForEntity } from './types/permission';
-import omit from 'object.omit';
 
 export function isSearchOperation(val: any): val is VSO {
   return Object.keys(val).every(val => val.startsWith('$'));
 }
 
 export function isNotClause<T = any>(value: any): value is Not<T> {
-  return Object.keys(value) === ['$not'];
+  return Object.keys(value)[0] === '$not';
 }
 
 export function includesMany<T>(array: T[], includes: T[]) {
