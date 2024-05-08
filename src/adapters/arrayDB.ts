@@ -12,6 +12,7 @@ import {
   WithEntity,
   WithId,
 } from '../entities';
+import { recompose } from '../entities.functions';
 import { TransformToZodObject, timestampsSchema } from '../schemas';
 import { DSO } from '../types';
 import {
@@ -277,7 +278,9 @@ export class CollectionDB<T extends Re> implements Repository<Entity & T> {
       const permissions = CollectionDB.generateDefaultPermissions();
       return [key, permissions] as const;
     });
-    const out1 = Object.fromEntries(entries);
+
+    const _out1 = Object.fromEntries(entries);
+    const out1 = recompose(_out1);
     const permissions = CollectionDB.timestampsPermissionsCreator;
     const out2 = {
       ...out1,
