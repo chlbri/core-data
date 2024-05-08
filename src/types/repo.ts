@@ -18,11 +18,12 @@ export type QueryOptions = {
 
 export type PromiseRD<T> = Promise<RD<T, Status>>;
 
-export type StringKeys<T extends Re> = StateMatching<T>;
+export type StringKeys<T extends Ru> = StateMatching<T>;
 
-export type Re = Record<string, unknown>;
+export type Ru = Record<string, unknown>;
+export type Ra = Record<string, any>;
 
-export type Projection<T extends Re> = StringKeys<WT<T>>[];
+export type Projection<T extends Ru> = StringKeys<WT<T>>[];
 
 export type ToOptional<T extends any[]> = T['length'] extends 0
   ? []
@@ -45,24 +46,24 @@ export type PromiseRDwithIdMany<T> = PromiseRD<WI<T>[]>;
 
 // #region Create
 
-export type CreateMany<T extends Re> = (args: {
+export type CreateMany<T extends Ru> = (args: {
   actorID: string;
   data: WT<T>[];
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type CreateOne<T extends Re> = (args: {
+export type CreateOne<T extends Ru> = (args: {
   actorID: string;
   data: WT<T>;
 }) => PromiseRD<string>;
 
-export type UpsertOne<T extends Re> = (args: {
+export type UpsertOne<T extends Ru> = (args: {
   actorID: string;
   id?: string;
   data: WT<T>;
 }) => PromiseRD<string>;
 
-export type UpsertMany<T extends Re> = (args: {
+export type UpsertMany<T extends Ru> = (args: {
   actorID: string;
   upserts: { _id?: string; data: WT<T> }[];
   options?: QueryOptions;
@@ -72,30 +73,30 @@ export type UpsertMany<T extends Re> = (args: {
 
 // #region Read
 
-export type ReadAll<T extends Re> = (
+export type ReadAll<T extends Ru> = (
   actorID: string,
   options?: QueryOptions,
 ) => PromiseRDwithIdMany<WithEntity<T>>;
 
-export type ReadMany<T extends Re> = (args: {
+export type ReadMany<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions;
 }) => PromiseRDwithIdMany<T>;
 
-export type ReadManyByIds<T extends Re> = (args: {
+export type ReadManyByIds<T extends Ru> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions;
 }) => PromiseRDwithIdMany<T>;
 
-export type ReadOne<T extends Re> = (args: {
+export type ReadOne<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
 }) => PromiseRDwithID<T>;
 
-export type ReadOneById<T extends Re> = (args: {
+export type ReadOneById<T extends Ru> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
@@ -107,7 +108,7 @@ export type ReadOneById<T extends Re> = (args: {
 
 export type CountAll = (actorID: string) => PromiseRD<number>;
 
-export type Count<T extends Re> = (args: {
+export type Count<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions;
@@ -117,20 +118,20 @@ export type Count<T extends Re> = (args: {
 
 // #region Update
 
-export type UpdateAll<T extends Re> = (args: {
+export type UpdateAll<T extends Ru> = (args: {
   actorID: string;
   data: WT<T>;
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type UpdateMany<T extends Re> = (args: {
+export type UpdateMany<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WT<T>;
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type UpdateManyByIds<T extends Re> = (args: {
+export type UpdateManyByIds<T extends Ru> = (args: {
   actorID: string;
   ids: string[];
   data: WT<T>;
@@ -138,14 +139,14 @@ export type UpdateManyByIds<T extends Re> = (args: {
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type UpdateOne<T extends Re> = (args: {
+export type UpdateOne<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WT<T>;
   options?: Omit<QueryOptions, 'limit'>;
 }) => PromiseRD<string>;
 
-export type UpdateOneById<T extends Re> = (args: {
+export type UpdateOneById<T extends Ru> = (args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;
@@ -157,20 +158,20 @@ export type UpdateOneById<T extends Re> = (args: {
 
 // #region Set
 
-export type SetAll<T extends Re> = (args: {
+export type SetAll<T extends Ru> = (args: {
   actorID: string;
   data: WT<T>;
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type SetMany<T extends Re> = (args: {
+export type SetMany<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WT<T>;
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type SetManyByIds<T extends Re> = (args: {
+export type SetManyByIds<T extends Ru> = (args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
@@ -178,14 +179,14 @@ export type SetManyByIds<T extends Re> = (args: {
   options?: QueryOptions;
 }) => PromiseRD<string[]>;
 
-export type SetOne<T extends Re> = (args: {
+export type SetOne<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
   data: WT<T>;
   options?: Omit<QueryOptions, 'limit'>;
 }) => PromiseRD<string>;
 
-export type SetOneById<T extends Re> = (args: {
+export type SetOneById<T extends Ru> = (args: {
   actorID: string;
   id: string;
   data: WT<T>;
@@ -299,7 +300,7 @@ export type RetrieveOneById<T> = (args: {
 
 // #endregion
 
-export interface Repository<T extends Re> {
+export interface Repository<T extends Ru> {
   createMany: CreateMany<T>;
   createOne: CreateOne<T>;
   upsertOne: UpsertOne<T>;

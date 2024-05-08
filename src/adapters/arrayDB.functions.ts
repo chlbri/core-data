@@ -1,6 +1,7 @@
 import { dequal } from 'dequal';
+import { z } from 'zod';
 import { isNotClause } from '../functions';
-import { DataSearchOperations, SearchOperation } from '../types';
+import type { DataSearchOperations, SearchOperation } from '../types';
 
 export function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
@@ -173,4 +174,45 @@ export function inStreamSearchAdapter<T>(
     return funcs.reduce((acc, curr) => acc && curr(arg as any), true);
   };
   return resolver;
+}
+
+export type ZodMatching<
+  T extends z.ZodRawShape,
+  B extends boolean = true,
+  Key = keyof T,
+> = Key extends string
+  ? T[Key] extends z.AnyZodObject
+    ?
+        | `${Key}.${ZodMatching<T[Key]['shape'], B>}`
+        | (B extends true ? Key : never)
+    : Key
+  : never;
+
+function _zodDecomposeKeys(shape: z.ZodRawShape, addObjectKey = true) {
+  const entries = Object.entries(shape).sort(([key1], [key2]) => {
+    return key1.localeCompare(key2);
+  });
+
+  const out: string[] = [];
+  entries.forEach(([key, value]) => {
+    if (value instanceof z.ZodObject) {
+      const virtuals = _zodDecomposeKeys(value.shape, addObjectKey).map(
+        val1 => {
+          return `${key}.${val1}`;
+        },
+      );
+      if (!!addObjectKey) out.push(key);
+      out.push(...virtuals);
+    } else {
+      out.push(key);
+    }
+  });
+  return out;
+}
+
+export function zodDecomposeKeys<
+  Z extends z.ZodRawShape,
+  B extends boolean = true,
+>(shape: Z, addObjectKey?: B) {
+  return _zodDecomposeKeys(shape, addObjectKey) as ZodMatching<Z, B>[];
 }

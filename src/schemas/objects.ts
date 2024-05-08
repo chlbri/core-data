@@ -17,9 +17,12 @@ export const collectionPermissionsShape = {
 // #endregion
 
 export const timestampsSchema = z.object({
-  _createdAt: z.date(),
-  _updatedAt: z.date(),
-  _deletedAt: z.union([z.literal(false), z.date()]),
+  _created: z.object({ date: z.date(), by: z.string() }),
+  _updatedAt: z.object({ date: z.date(), by: z.string() }),
+  _deletedAt: z.union([
+    z.literal(false),
+    z.object({ date: z.date(), by: z.string() }),
+  ]),
 });
 
 const _entitySchema = z.object({

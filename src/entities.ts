@@ -24,6 +24,11 @@ export type PermissionsArray = Record<
   Permissions[PermissionsKeys][]
 >;
 
+export type PermissionsObject<T extends Re> = Record<
+  keyof T,
+  PermissionsArray
+>;
+
 export type Re = Record<string, unknown>;
 
 export type CollectionPermissions = Permissions & {
@@ -34,15 +39,18 @@ export type DeepRequired<T> = {
   [P in keyof T]-?: DeepRequired<T[P]>;
 };
 
-export type _CollectionWithPermissions<T extends Re> = {
+export type ObjectWithPermissions<T extends Re> = {
   [key in keyof T]: T[key] extends Re
-    ? _CollectionWithPermissions<T[key]>
-    : Permissions;
+    ? ObjectWithPermissions<T[key]>
+    : PermissionsArray;
 };
 
-export type TimeStampsPermissions = Record<keyof TimeStamps, Permissions>;
+export type TimeStampsPermissions = Record<
+  keyof TimeStamps,
+  PermissionsArray
+>;
 
-export type CollectionWithPermissions<T> = _CollectionWithPermissions<
+export type EntryWithPermissions<T> = ObjectWithPermissions<
   DeepRequired<WithoutTimeStamps<T>>
 > & {
   _id: string;

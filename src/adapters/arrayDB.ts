@@ -2,16 +2,18 @@ import { ReturnData, ServerErrorStatus } from '@bemedev/return-data';
 import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
 import { merge } from 'ts-deepmerge';
-import { z } from 'zod';
 import {
   Actor,
   CollectionPermissions,
-  CollectionWithPermissions,
+  EntryWithPermissions,
+  ObjectWithPermissions,
   Re,
   TimeStamps,
   WithEntity,
   WithId,
 } from '../entities';
+import { TransformToZodObject, timestampsSchema } from '../schemas';
+import { DSO } from '../types';
 import {
   Count,
   CountAll,
@@ -52,36 +54,44 @@ import {
   UpsertOne,
   WT,
 } from '../types/repo';
-import { Entity } from './../entities';
-import { inStreamSearchAdapter } from './arrayDB.functions';
+import { Entity, PermissionsArray } from './../entities';
+import {
+  inStreamSearchAdapter,
+  zodDecomposeKeys,
+} from './arrayDB.functions';
 
 // type Permission<T extends Entity> = {
 //   permissionReader: PermissionsReaderOne<T>;
 // };
 
 export type CollectionArgs<T> = {
-  _schema: z.ZodType<T>;
+  _schema: TransformToZodObject<WT<T>>;
   _actors?: Actor[];
   permissions?: CollectionPermissions;
   checkPermissions?: boolean;
   test?: boolean;
 };
 
-export class CollectionDB<T extends WT<Re>>
-  implements Repository<Entity & T>
-{
+export class CollectionDB<T extends Re> implements Repository<Entity & T> {
   /* , Permission<T> */
   private _collection: WithEntity<T>[];
   private test: boolean;
-  private _colPermissions: CollectionWithPermissions<T>[];
-  private _schema: z.ZodType<T>;
+  private _colPermissions: EntryWithPermissions<T>[];
+  private _schema: TransformToZodObject<WT<T>>;
   private _actors: Actor[] = [];
-  private permissions?: CollectionPermissions;
+  private _permissions?: CollectionPermissions;
   private checkPermissions: boolean;
 
   get collection() {
     if (this.test) {
       return this._collection;
+    }
+    return [];
+  }
+
+  get colPermissions() {
+    if (this.test) {
+      return this._colPermissions;
     }
     return [];
   }
@@ -97,7 +107,7 @@ export class CollectionDB<T extends WT<Re>>
         }
       });
     });
-    this.rinitDB();
+    this._rinitDB();
     this._collection.push(...__db);
   };
 
@@ -115,7 +125,7 @@ export class CollectionDB<T extends WT<Re>>
     // #region Constructore Variables
     this._schema = _schema;
     if (_actors) this._actors.push(..._actors);
-    this.permissions = permissions;
+    this._permissions = permissions;
     this.checkPermissions = !!checkPermissions;
     this.test = !!test;
     // #endregion
@@ -127,7 +137,7 @@ export class CollectionDB<T extends WT<Re>>
   get canCheckPermissions() {
     return (
       this.checkPermissions &&
-      !!this.permissions &&
+      !!this._permissions &&
       this._actors.length > 0
     );
   }
@@ -145,14 +155,9 @@ export class CollectionDB<T extends WT<Re>>
 
       const permissions = actor.permissions;
       if (!permissions) return false;
-      if (!this.permissions) return false;
-      return permissions.includes(this.permissions.__create);
+      if (!this._permissions) return false;
+      return permissions.includes(this._permissions.__create);
     }
-    return true;
-  };
-
-  private canRead = (actorID: string) => {
-    //TODO: to build
     return true;
   };
 
@@ -165,13 +170,13 @@ export class CollectionDB<T extends WT<Re>>
 
       const permissions = actor.permissions;
       if (!permissions) return false;
-      if (!this.permissions) return false;
-      return permissions.includes(this.permissions.__remove);
+      if (!this._permissions) return false;
+      return permissions.includes(this._permissions.__remove);
     }
     return true;
   };
 
-  private generateError = (
+  private generateServerError = (
     status: ServerErrorStatus,
     ...messages: string[]
   ) => {
@@ -182,17 +187,39 @@ export class CollectionDB<T extends WT<Re>>
     return this._schema;
   }
 
-  rinitDB() {
+  _rinitDB() {
     this._collection.length = 0;
+    this._colPermissions.length = 0;
   }
 
   get length() {
     return this._collection.length;
   }
-  //TODO reset all
+
+  private reduceByPermissions = (filters: DSO<WT<T>>) => {
+    const _reads = this._collection.filter(inStreamSearchAdapter(filters));
+    const reads: WithEntity<T>[] = [];
+
+    for (const { _id, ...data } of _reads) {
+      const permission = this._colPermissions.find(
+        permission => permission._id === _id,
+      );
+      if (!permission) return;
+    }
+    const ids = _reads.map(({ _id }) => _id);
+    const _permissions = this._colPermissions.filter(({ _id }) =>
+      ids.includes(_id),
+    );
+    const permissions = _permissions.map(
+      ({ _created, _updated, _deleted, ...perm }) => {
+        return perm;
+      },
+    ) as WithId<ObjectWithPermissions<T>>[];
+    return { permissions, reads: _reads } as const;
+  };
 
   // #region Create
-
+  // #region Static
   static generateCreateTimestamps = (actorID: string): TimeStamps => ({
     _created: {
       by: actorID,
@@ -205,7 +232,7 @@ export class CollectionDB<T extends WT<Re>>
     _deleted: false,
   });
 
-  static generateCreate<T extends Re>(
+  static generateCreateData<T extends Re>(
     actorID: string,
     data: WT<T>,
     _id = nanoid(),
@@ -219,60 +246,147 @@ export class CollectionDB<T extends WT<Re>>
     return input;
   }
 
+  static generateDefaultPermissions = () => {
+    const out: PermissionsArray = {
+      __read: [],
+      __update: [],
+      __remove: [],
+    };
+    return out;
+  };
+
+  // #endregion
+
+  // #region Private
+  static get timestampsPermissionsCreator() {
+    const keys = Object.keys(
+      timestampsSchema.shape,
+    ) as (keyof TimeStamps)[];
+    const entries = keys.map(key => {
+      const permissions = CollectionDB.generateDefaultPermissions();
+      return [key, permissions] as const;
+    });
+    type O = Record<(typeof keys)[number], PermissionsArray>;
+    const out = Object.fromEntries(entries);
+    return out as O;
+  }
+
+  private generatePermissionCreate = (_id: string) => {
+    const keys = zodDecomposeKeys(this._schema.shape, false);
+    const entries = keys.map(key => {
+      const permissions = CollectionDB.generateDefaultPermissions();
+      return [key, permissions] as const;
+    });
+    const out1 = Object.fromEntries(entries);
+    const permissions = CollectionDB.timestampsPermissionsCreator;
+    const out2 = {
+      ...out1,
+      ...permissions,
+      _id,
+    } as EntryWithPermissions<T>;
+    return out2;
+  };
+
+  private createPermissionInputs = (...ids: string[]) => {
+    ids.forEach(id => {
+      const input = this.generatePermissionCreate(id);
+      this._colPermissions.push(input);
+    });
+  };
+
+  private generateCreate = (
+    actorID: string,
+    data: WT<T>,
+    _id = nanoid(),
+  ) => {
+    const input = CollectionDB.generateCreateData(actorID, data, _id);
+    this._collection.push(input);
+    this.createPermissionInputs(input._id);
+    return input;
+  };
+  // #endregion
+
   createMany: CreateMany<T> = async ({
     actorID,
     data: _datas,
     options,
   }) => {
+    // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateError(510, 'This actor cannot create elements');
+      return this.generateServerError(
+        510,
+        'This actor cannot create elements',
+      );
     }
+    // #endregion
+
     const inputs = _datas.map(data =>
-      CollectionDB.generateCreate(actorID, data),
+      CollectionDB.generateCreateData(actorID, data),
     );
+
     if (options && options.limit && options.limit < _datas.length) {
       const limit = options.limit;
+
+      // #region Pushs
       const _inputs = inputs.slice(0, limit);
       this._collection.push(..._inputs);
+      const ids = _inputs.map(({ _id }) => _id);
+      this.createPermissionInputs(...ids);
+      // #endregion
+
       const payload = _inputs.map(input => input._id);
       const messages = ['Limit exceeded'];
       const rd = new ReturnData({ status: 110, payload, messages });
       return rd;
     }
 
+    // #region Pushs
     this._collection.push(...inputs);
+    const ids = inputs.map(({ _id }) => _id);
+    this.createPermissionInputs(...ids);
+    // #endregion
+
     const payload = inputs.map(input => input._id) as string[];
     const rd = new ReturnData({ status: 210, payload });
     return rd;
   };
 
   createOne: CreateOne<T> = async ({ data, actorID }) => {
+    // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateError(511, 'This actor cannot create elements');
+      return this.generateServerError(
+        511,
+        'This actor cannot create elements',
+      );
     }
-    const input = CollectionDB.generateCreate(actorID, data);
+    // #endregion
 
-    this._collection.push(input);
+    const input = this.generateCreate(actorID, data);
     const payload = input._id;
     const rd = new ReturnData({ status: 211, payload });
     return rd;
   };
 
   upsertOne: UpsertOne<T> = async ({ actorID, id: _id, data }) => {
+    // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateError(512, 'This actor cannot create elements');
+      return this.generateServerError(
+        512,
+        'This actor cannot create elements',
+      );
     }
-    const _filter = inStreamSearchAdapter({ _id, ...data } as any);
+    // #endregion
+
+    const _filter = (data: WithEntity<T>) => _id === data._id;
     const _exist = this._collection.find(_filter);
     if (_exist) {
       const messages = ['Already exists'];
       return new ReturnData({ status: 312, payload: _id, messages });
     } else {
-      const input = CollectionDB.generateCreate(actorID, data, _id);
-      this._collection.push(input);
+      this.generateCreate(actorID, data, _id);
       return new ReturnData({ status: 212, payload: _id });
     }
   };
@@ -280,7 +394,10 @@ export class CollectionDB<T extends WT<Re>>
   upsertMany: UpsertMany<T> = async ({ actorID, upserts, options }) => {
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateError(513, 'This actor cannot create elements');
+      return this.generateServerError(
+        513,
+        'This actor cannot create elements',
+      );
     }
     const inputs = upserts.map(({ _id, data }) => ({
       _id: _id ?? nanoid(),
@@ -290,17 +407,20 @@ export class CollectionDB<T extends WT<Re>>
     if (options && options.limit && options.limit < upserts.length) {
       const limit = options.limit;
       const _inputs = inputs.slice(0, limit).map(({ _id, ...data }) => {
-        const _filter = inStreamSearchAdapter(data as any);
+        const _filter = (data: WithEntity<T>) => _id === data._id;
         const _exist = this._collection.find(_filter)?._id;
         if (_exist) {
           alreadyExists.push(_exist);
         } else {
-          const _input = CollectionDB.generateCreate<T>(
+          // #region Pushs
+          const _input = CollectionDB.generateCreateData<T>(
             actorID,
             data as any,
             _id,
           );
           this._collection.push(_input);
+          this.createPermissionInputs(_input._id);
+          // #endregion
         }
         return { _id, ...data };
       });
@@ -314,22 +434,27 @@ export class CollectionDB<T extends WT<Re>>
         return new ReturnData({
           status: 113,
           payload: _inputs.map(input => input._id),
+          messages: ['Limit is reached'],
         });
       }
     }
 
     inputs.forEach(({ _id, ...data }) => {
-      const _exist = this._collection.find(data => data._id === _id)?._id;
+      const _filter = (data: WithEntity<T>) => _id === data._id;
+      const _exist = this._collection.find(_filter)?._id;
 
       if (_exist) {
         alreadyExists.push(_exist);
       } else {
-        const _input = CollectionDB.generateCreate<T>(
+        // #region Pushs
+        const _input = CollectionDB.generateCreateData<T>(
           actorID,
           data as any,
           _id,
         );
         this._collection.push(_input);
+        this.createPermissionInputs(_input._id);
+        // #endregion
       }
       return { _id, ...data };
     });
@@ -352,10 +477,36 @@ export class CollectionDB<T extends WT<Re>>
 
   // #region Read
 
+  // #region Private
+  private canRead = (actorID: string, filters: DSO<WT<T>>) => {
+    if (!this.checkPermissions) return true;
+    const actor = this.getActor(actorID);
+    if (!actor) return false;
+    const isSuperAdmin = actor.superAdmin;
+    if (isSuperAdmin) return true;
+    actor.permissions;
+    // const { permissions, reads } = this.getDataAndPermissions(filters);
+  };
+  private readPermissions = (filters: DSO<WT<T>>) => {
+    const all = this.reduceByPermissions(filters);
+    // const ids = reads.map(data => {
+    //   data
+    // });
+    // const reads = all.map(({ _id, ...data }) => {
+    //   const _data = data as unknown as ObjectWithPermissions<T>;
+    //   const values = Object.values(_data);
+    //   return { _id, __read: _data };
+    // });
+  };
+  // #endregion
+
   readAll: ReadAll<T> = async (actorID, options) => {
     const isSuperAdmin = this.getActor(actorID)?.superAdmin;
     if (!isSuperAdmin) {
-      return this.generateError(520, 'Only SuperAdmin can read all data');
+      return this.generateServerError(
+        520,
+        'Only SuperAdmin can read all data',
+      );
     }
     if (!this._collection.length) {
       return new ReturnData({
@@ -386,7 +537,7 @@ export class CollectionDB<T extends WT<Re>>
   readMany: ReadMany<T> = async ({ actorID, filters, options }) => {
     const actor = this.getActor(actorID);
     if (!this._collection.length) {
-      return this.generateError(521, 'Empty');
+      return this.generateServerError(521, 'Empty');
     }
 
     const reads = this._collection.filter(inStreamSearchAdapter(filters));
@@ -416,7 +567,7 @@ export class CollectionDB<T extends WT<Re>>
     options,
   }) => {
     if (!this._collection.length) {
-      this.generateError(522, 'Empty');
+      this.generateServerError(522, 'Empty');
     }
 
     const reads1 = this._collection.filter(data => ids.includes(data._id));
@@ -463,7 +614,7 @@ export class CollectionDB<T extends WT<Re>>
 
   readOne: ReadOne<T> = async ({ actorID, filters }) => {
     if (!this._collection.length) {
-      return this.generateError(523, 'Empty');
+      return this.generateServerError(523, 'Empty');
     }
     const payload = this._collection.find(inStreamSearchAdapter(filters));
     if (payload) {
@@ -474,7 +625,7 @@ export class CollectionDB<T extends WT<Re>>
 
   readOneById: ReadOneById<T> = async ({ actorID, id, filters }) => {
     if (!this._collection.length) {
-      return this.generateError(524, 'Empty');
+      return this.generateServerError(524, 'Empty');
     }
 
     const exits1 = this._collection.find(data => data._id === id);
@@ -499,14 +650,14 @@ export class CollectionDB<T extends WT<Re>>
   countAll: CountAll = async actorID => {
     const out = this._collection.length;
     if (out <= 0) {
-      return this.generateError(525, 'Empty');
+      return this.generateServerError(525, 'Empty');
     }
     return new ReturnData({ status: 219, payload: out });
   };
 
   count: Count<T> = async ({ actorID, filters, options }) => {
     if (!this._collection.length) {
-      return this.generateError(526, 'Empty');
+      return this.generateServerError(526, 'Empty');
     }
 
     const payload = this._collection.filter(
@@ -530,7 +681,7 @@ export class CollectionDB<T extends WT<Re>>
 
   updateAll: UpdateAll<T> = async ({ actorID, data, options }) => {
     if (!this._collection.length) {
-      return this.generateError(527, 'Empty');
+      return this.generateServerError(527, 'Empty');
     }
 
     const db = [...this._collection];
@@ -560,7 +711,7 @@ export class CollectionDB<T extends WT<Re>>
     options,
   }) => {
     if (!this._collection.length) {
-      return this.generateError(528, 'Empty');
+      return this.generateServerError(528, 'Empty');
     }
     const db = [...this._collection];
 
