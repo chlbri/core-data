@@ -35,7 +35,6 @@
   "devDependencies": {
     "@bemedev/vitest-alias": "^0.0.2",
     "@bemedev/vitest-extended": "^0.3.3",
-    "@types/faker": "^6.6.9",
     "@types/object.omit": "^3.0.3",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
@@ -66,7 +65,7 @@
     "zod": "^3.10.1"
   },
   "dependencies": {
-    "@bemedev/decompose": "^0.2.1",
+    "@bemedev/decompose": "^0.3.1",
     "@bemedev/return-data": "^0.2.0",
     "@bemedev/zod-extended": "^0.1.2",
     "deep-merge": "^1.0.0",

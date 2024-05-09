@@ -12,7 +12,7 @@ import {
   WithEntity,
   WithId,
 } from '../entities';
-import { recompose } from '../entities.functions';
+import { recompose } from '@bemedev/decompose';
 import { TransformToZodObject, timestampsSchema } from '../schemas';
 import { DSO } from '../types';
 import {
@@ -200,23 +200,23 @@ export class CollectionDB<T extends Re> implements Repository<Entity & T> {
   private reduceByPermissions = (filters: DSO<WT<T>>) => {
     const _reads = this._collection.filter(inStreamSearchAdapter(filters));
     const reads: WithEntity<T>[] = [];
+    const _permissions: EntryWithPermissions<T>[] = [];
 
     for (const { _id, ...data } of _reads) {
       const permission = this._colPermissions.find(
         permission => permission._id === _id,
       );
       if (!permission) return;
+      _permissions.push(permission);
     }
     const ids = _reads.map(({ _id }) => _id);
-    const _permissions = this._colPermissions.filter(({ _id }) =>
-      ids.includes(_id),
-    );
+
     const permissions = _permissions.map(
       ({ _created, _updated, _deleted, ...perm }) => {
         return perm;
       },
     ) as WithId<ObjectWithPermissions<T>>[];
-    return { permissions, reads: _reads } as const;
+    // return { permissions, reads: _reads } as const;
   };
 
   // #region Create
