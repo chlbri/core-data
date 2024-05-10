@@ -1,19 +1,20 @@
 {
-  "name": "@core/data",
+  "name": "@bemedev/core-data",
   "version": "0.0.14",
-  "description": "GitPod for Typescript",
+  "description": "",
   "repository": "https://github.com/chlbri/core-data.git",
   "type": "module",
   "author": "chlbri <bri_lvi@icloud.com>",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "license": "MIT",
   "private": true,
   "scripts": {
     "config": "pnpm install",
     "config:off": "pnpm run config --offline",
     "ci": "pnpm run config:off && pnpm run lint && pnpm run test && pnpm run build",
-    "rollup": "rollup -c",
+    "rollup": "NODE_OPTIONS=--max-old-space-size=7136 && rollup -c",
     "build": "rm -rf lib && pnpm run rollup",
     "rm": "rm -rf node_modules pnpm-lock.yaml",
     "rinit": "pnpm run rm && pnpm run config",
@@ -44,6 +45,8 @@
     "edit-json-file": "^1.8.0",
     "eslint": "^9.2.0",
     "faker": "^6.6.6",
+    "glob": "^10.3.12",
+    "husky": "^9.0.11",
     "immer": "^10.1.1",
     "mock-stdin": "^1.0.0",
     "mongodb": "^6.6.0",
@@ -51,6 +54,9 @@
     "object.omit": "^3.0.0",
     "prettier": "^3.2.5",
     "rimraf": "^5.0.5",
+    "rollup": "^4.14.1",
+    "rollup-plugin-tsc-alias": "^1.1.2",
+    "rollup-plugin-typescript2": "^0.36.0",
     "shelljs": "^0.8.5",
     "ts-node": "^10.9.2",
     "tsd": "^0.31.0",
@@ -60,8 +66,6 @@
     "zod-extended": "^1.0.5"
   },
   "peerDependencies": {
-    "core": "github:chlbri/core",
-    "core-promises": "github:chlbri/core-promises",
     "zod": "^3.10.1"
   },
   "dependencies": {

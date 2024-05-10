@@ -207,5 +207,3 @@ export type DataSearchOperations<T = any> =
   | Not<T>
   | ObjectSearchOperations<T>;
 export type DSO<T = any> = DataSearchOperations<T>;
-
-// TODO: Use zod to generate types

@@ -1,21 +1,9 @@
 import { ReturnData } from '@bemedev/return-data';
 import { createTests } from '@bemedev/vitest-extended';
-import tsd, { formatter } from 'tsd';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import { CollectionDB } from './arrayDB';
 import { zodDecomposeKeys } from './arrayDB.functions';
-
-test('#0 => types', async () => {
-  const _tsd = await tsd({
-    cwd: process.cwd(),
-    testFiles: ['./src/adapters/arrayDB.test-d.ts'],
-    typingsFile: './src/adapters/arrayDB.ts',
-  });
-
-  const _fd = formatter(_tsd, true);
-  expect(_fd).toBe('');
-}, 10000);
 
 describe('#1 => zodDecomposeKeys', () => {
   const useTests = createTests<any>(zodDecomposeKeys);

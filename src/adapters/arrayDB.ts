@@ -1,3 +1,4 @@
+import { recompose } from '@bemedev/decompose';
 import { ReturnData, ServerErrorStatus } from '@bemedev/return-data';
 import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
@@ -12,7 +13,6 @@ import {
   WithEntity,
   WithId,
 } from '../entities';
-import { recompose } from '@bemedev/decompose';
 import { TransformToZodObject, timestampsSchema } from '../schemas';
 import { DSO } from '../types';
 import {
@@ -419,7 +419,7 @@ export class CollectionDB<T extends Re> implements Repository<Entity & T> {
           const _input = CollectionDB.generateCreateData<T>(
             actorID,
             data as any,
-            _id,
+            _id, 
           );
           this._collection.push(_input);
           this.createPermissionInputs(_input._id);
@@ -428,6 +428,10 @@ export class CollectionDB<T extends Re> implements Repository<Entity & T> {
         return { _id, ...data };
       });
       if (alreadyExists.length > 0) {
+        const check = alreadyExists.length === upserts.length;
+        if (check) {
+          return this.generateServerError(513, 'All data exists');
+        }
         return new ReturnData({
           status: 313,
           payload: _inputs.map(input => input._id),
