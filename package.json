@@ -13,7 +13,7 @@
   "scripts": {
     "config": "pnpm install",
     "config:off": "pnpm run config --offline",
-    "ci": "pnpm run config:off && pnpm run lint && pnpm run test && pnpm run build",
+    "ci": "pnpm run lint && pnpm run test && pnpm run build",
     "ci:online": "pnpm run config && pnpm run lint && pnpm run test && pnpm run build",
     "ci:admin": "pnpm run rm:lib && pnpm run ci:online",
     "rollup": "rollup -c",
