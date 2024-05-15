@@ -1,9 +1,15 @@
+import { decompose, recompose, type Ru } from '@bemedev/decompose';
 import { dequal } from 'dequal';
 import { z } from 'zod';
 import { isNotClause } from '../functions';
-import type { DataSearchOperations, SearchOperation } from '../types';
+import type {
+  DataSearchOperations,
+  Projection,
+  ReduceByProjection,
+  SearchOperation,
+} from '../types';
 
-export function inStreamSearchAdapterKey<T>(
+function inStreamSearchAdapterKey<T>(
   op: SearchOperation<T>,
 ): (arg: T) => boolean {
   // if (!op) return () => true;
@@ -176,6 +182,7 @@ export function inStreamSearchAdapter<T>(
   return resolver;
 }
 
+// #region ZodMatching
 export type ZodMatching<
   T extends z.ZodRawShape,
   B extends boolean = true,
@@ -187,6 +194,7 @@ export type ZodMatching<
         | (B extends true ? Key : never)
     : Key
   : never;
+// #endregion
 
 function _zodDecomposeKeys(shape: z.ZodRawShape, addObjectKey = true) {
   const entries = Object.entries(shape).sort(([key1], [key2]) => {
@@ -215,4 +223,55 @@ export function zodDecomposeKeys<
   B extends boolean = true,
 >(shape: Z, addObjectKey?: B) {
   return _zodDecomposeKeys(shape, addObjectKey) as ZodMatching<Z, B>[];
+}
+
+function cleanProjection(...datas: string[]) {
+  const out: string[] = [];
+  datas.forEach(data => {
+    const checkString = data.split('.')[0];
+    const check = out.includes(checkString);
+    if (!check) out.push(data);
+  });
+  return out;
+}
+
+/**
+ *
+ * @param data the data to reduce
+ * @param projection The shape that the data will take
+ */
+export function withProjection<T extends Ru, P extends Projection<T> = []>(
+  data: T,
+  ...projection: P
+) {
+  const check = !projection.length;
+  if (check) return data as ReduceByProjection<T, P>;
+  const decomposed = decompose(data) as any;
+  const reduced: any = {};
+  const cleaned = cleanProjection(...projection);
+  cleaned.forEach(key => {
+    reduced[key] = decomposed[key];
+  });
+  const recomposed = recompose(reduced);
+
+  return recomposed as ReduceByProjection<T, P>;
+}
+
+/**
+ * Same as @link {withProjection}, but here the data is already flatten
+ * @param data Data is already flatten
+ * @param projection The shape that the data will take
+ */
+export function withProjection2<T extends Ru>(
+  data: T,
+  ...projection: string[]
+) {
+  const check = !projection.length;
+  if (check) return data;
+  const reduced: any = {};
+  const cleaned = cleanProjection(...projection);
+  cleaned.forEach(key => {
+    reduced[key] = data[key];
+  });
+  return reduced;
 }

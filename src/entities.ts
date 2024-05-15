@@ -13,6 +13,7 @@ export type WithEntity<T extends Re> = Entity & T;
 export type WithoutId<T> = Omit<T, '_id'>;
 
 export type WithId<T> = T & { _id: string };
+export type MaybeId<T> = T & { _id?: string };
 
 export type WithoutTimeStamps<T> = Omit<T, keyof TimeStamps | '_id'>;
 
@@ -56,11 +57,12 @@ export type EntryWithPermissions<T> = ObjectWithPermissions<
   _id: string;
 } & TimeStampsPermissions;
 
-export type Actor =
-  | { actorID: string; superAdmin: true }
-  | {
-      actorID: string;
-      privateKey: string;
-      permissions: string[];
-      superAdmin?: false;
-    };
+export type SuperAdmin = { actorID: string; superAdmin: true };
+export type SimpleActor = {
+  actorID: string;
+  privateKey: string;
+  permissions: string[];
+  superAdmin?: false;
+};
+
+export type Actor = SuperAdmin | SimpleActor;

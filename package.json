@@ -69,7 +69,7 @@
     "zod": "^3.10.1"
   },
   "dependencies": {
-    "@bemedev/decompose": "^0.7.0",
+    "@bemedev/decompose": "^0.7.1",
     "@bemedev/return-data": "^0.2.0",
     "@bemedev/zod-extended": "^0.1.2",
     "deep-merge": "^1.0.0",

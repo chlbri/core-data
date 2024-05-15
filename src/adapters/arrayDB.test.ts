@@ -5,77 +5,79 @@ import { z } from 'zod';
 import { CollectionDB } from './arrayDB';
 import { zodDecomposeKeys } from './arrayDB.functions';
 
-describe('#1 => zodDecomposeKeys', () => {
-  const useTests = createTests<any>(zodDecomposeKeys);
+describe('#1 => Functions', () => {
+  describe('#1 => ZOdDEcomposeKeys', () => {
+    const useTests = createTests<any>(zodDecomposeKeys);
 
-  useTests(
-    ['Empty shape', [{}], []],
-    [
-      'simple shape',
-      [{ age: z.number(), name: z.string() }],
-      ['age', 'name'],
-    ],
-    [
-      'complex shape #1, the object is empty',
-      [{ age: z.number(), name: z.string(), data: z.object({}) }],
-      ['age', 'data', 'name'],
-    ],
-    [
-      'complex shape #2, the object is simple',
+    useTests(
+      ['Empty shape', [{}], []],
       [
-        {
-          age: z.number(),
-          login: z.string(),
-          password: z.string(),
-          data: z.object({
-            firstName: z.string(),
-            lastName: z.string(),
-            age: z.number(),
-          }),
-        },
+        'simple shape',
+        [{ age: z.number(), name: z.string() }],
+        ['age', 'name'],
       ],
       [
-        'age',
-        'data',
-        'data.age',
-        'data.firstName',
-        'data.lastName',
-        'login',
-        'password',
+        'complex shape #1, the object is empty',
+        [{ age: z.number(), name: z.string(), data: z.object({}) }],
+        ['age', 'data', 'name'],
       ],
-    ],
-    [
-      'complex shape #3, the object is recurscive',
       [
-        {
-          age: z.number(),
-          login: z.string(),
-          password: z.string(),
-          data: z.object({
-            firstName: z.string(),
-            lastName: z.string(),
+        'complex shape #2, the object is simple',
+        [
+          {
             age: z.number(),
-            phoneNumber: z.object({
-              country: z.number(),
-              number: z.number(),
+            login: z.string(),
+            password: z.string(),
+            data: z.object({
+              firstName: z.string(),
+              lastName: z.string(),
+              age: z.number(),
             }),
-          }),
-        },
+          },
+        ],
+        [
+          'age',
+          'data',
+          'data.age',
+          'data.firstName',
+          'data.lastName',
+          'login',
+          'password',
+        ],
       ],
       [
-        'age',
-        'data',
-        'data.age',
-        'data.firstName',
-        'data.lastName',
-        'data.phoneNumber',
-        'data.phoneNumber.country',
-        'data.phoneNumber.number',
-        'login',
-        'password',
+        'complex shape #3, the object is recurscive',
+        [
+          {
+            age: z.number(),
+            login: z.string(),
+            password: z.string(),
+            data: z.object({
+              firstName: z.string(),
+              lastName: z.string(),
+              age: z.number(),
+              phoneNumber: z.object({
+                country: z.number(),
+                number: z.number(),
+              }),
+            }),
+          },
+        ],
+        [
+          'age',
+          'data',
+          'data.age',
+          'data.firstName',
+          'data.lastName',
+          'data.phoneNumber',
+          'data.phoneNumber.country',
+          'data.phoneNumber.number',
+          'login',
+          'password',
+        ],
       ],
-    ],
-  );
+    );
+  });
 });
 
 describe('#7 => DB', () => {
@@ -117,7 +119,7 @@ describe('#7 => DB', () => {
 
   const generateSeed = (len = 10) => {
     return generateData(len).map((data, index) => {
-      return CollectionDB.generateCreateData<{ age: number }>(
+      return CollectionDB.buildCreate<{ age: number }>(
         SUPER_ADMIN_ID,
         data,
         `existed@${index}`,
@@ -213,7 +215,7 @@ describe('#7 => DB', () => {
           const __seed = generateSeed();
           const _id = 'existed@5';
           beforeAll(() => {
-            return COLLECTION.__seed(...__seed);
+            COLLECTION.__seed(...__seed);
           });
 
           test('#0 => Upsert with one id existed', async () => {
