@@ -57,13 +57,19 @@ export type ReduceByProjection<
   P extends Projection<T>,
 > = Recompose<Omit<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
 
-export type Read<
-  T extends Ru,
-  P extends Projection<T>,
-> = ReduceByProjection<T, P>[];
+export type Read<T extends Ru = Ru, P extends string[] = string[]> =
+  P extends Projection<WithId<WithoutTimeStamps<T>>>
+    ? ReduceByProjection<WithId<WithoutTimeStamps<T>>, P>
+    : WithId<WithoutTimeStamps<T>>;
 
-export type PromiseRDwithID<T> = PromiseRD<WithId<WT<T>>>;
-export type PromiseRDwithIdMany<T> = PromiseRD<WithId<WT<T>>[]>;
+export type PromiseRDwithID<
+  T extends Ru = Ru,
+  P extends string[] = string[],
+> = PromiseRD<Read<T, P>>;
+export type PromiseRDwithIdMany<
+  T extends Ru = Ru,
+  P extends string[] = string[],
+> = PromiseRD<Read<T, P>[]>;
 
 // #region Create
 
@@ -99,7 +105,7 @@ export type ReadAll<T extends Ru> = <
 >(
   actorID: string,
   options?: QueryOptions<P>,
-) => PromiseRDwithIdMany<T>;
+) => PromiseRDwithIdMany<T, P>;
 
 export type ReadMany<T extends Ru> = <
   P extends Projection<WithId<WithoutTimeStamps<T>>>,
@@ -107,7 +113,7 @@ export type ReadMany<T extends Ru> = <
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions<P>;
-}) => PromiseRDwithIdMany<T>;
+}) => PromiseRDwithIdMany<T, P>;
 
 export type ReadManyByIds<T extends Ru> = <
   P extends Projection<WithId<WithoutTimeStamps<T>>>,
@@ -116,7 +122,7 @@ export type ReadManyByIds<T extends Ru> = <
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions<P>;
-}) => PromiseRDwithIdMany<T>;
+}) => PromiseRDwithIdMany<T, P>;
 
 export type ReadOne<T extends Ru> = <
   P extends Projection<WithId<WithoutTimeStamps<T>>>,
@@ -124,7 +130,7 @@ export type ReadOne<T extends Ru> = <
   actorID: string;
   filters: DSO<T>;
   options?: Omit<QueryOptions<P>, 'limit'>;
-}) => PromiseRDwithID<T>;
+}) => PromiseRDwithID<T, P>;
 
 export type ReadOneById<T extends Ru> = <
   P extends Projection<WithId<WithoutTimeStamps<T>>>,
@@ -133,7 +139,7 @@ export type ReadOneById<T extends Ru> = <
   id: string;
   filters?: DSO<T>;
   options?: Omit<QueryOptions<P>, 'limit'>;
-}) => PromiseRDwithID<T>;
+}) => PromiseRDwithID<T, P>;
 
 // #endregion
 

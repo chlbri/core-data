@@ -31,6 +31,7 @@ import type {
   DeleteOneById,
   Projection,
   QueryOptions,
+  Read,
   ReadAll,
   ReadMany,
   ReadManyByIds,
@@ -593,12 +594,9 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     const isLimited = !!options?.limit && options.limit > rawReads.length;
 
     const slicedReads = rawReads.slice(0, options?.limit);
-    type Out = WithId<WT<T>>[];
+    type Out = Read<T, P>[];
     const projection = (options?.projection ?? []) as P;
 
-    const rawReadsWithProjection = slicedReads.map(data => {
-      return withProjection(data, ...projection);
-    }) as Out;
     /**
      * Check if some records are resticted by permissions
      */
@@ -608,10 +606,16 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
      * Grant all permissions for superAdmin
      */
     if (actor === true) {
+      const rawReadsWithProjection = slicedReads.map(data => {
+        return withProjection(data, ...projection);
+      }) as unknown as Out;
       return { payload: rawReadsWithProjection, isRestricted, isLimited };
     }
 
-    if (rawReadsWithProjection.length === 0) {
+    if (slicedReads.length === 0) {
+      const rawReadsWithProjection = slicedReads.map(data => {
+        return withProjection(data, ...projection);
+      }) as unknown as Out;
       return { payload: rawReadsWithProjection, isRestricted, isLimited };
     }
 

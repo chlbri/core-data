@@ -21,9 +21,9 @@ export type WI<T> = WithId<DeepPartial<T>>;
 export type WO<T> = WithoutId<DeepPartial<T>>;
 export type WT<T> = WithoutTimeStamps<DeepPartial<T>>;
 export type ReduceByProjection<T extends Ru, P extends Projection<T>> = Recompose<Omit<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
-export type Read<T extends Ru, P extends Projection<T>> = ReduceByProjection<T, P>[];
-export type PromiseRDwithID<T> = PromiseRD<WithId<WT<T>>>;
-export type PromiseRDwithIdMany<T> = PromiseRD<WithId<WT<T>>[]>;
+export type Read<T extends Ru = Ru, P extends string[] = string[]> = P extends Projection<WithId<WithoutTimeStamps<T>>> ? ReduceByProjection<WithId<WithoutTimeStamps<T>>, P> : WithId<WithoutTimeStamps<T>>;
+export type PromiseRDwithID<T extends Ru = Ru, P extends string[] = string[]> = PromiseRD<Read<T, P>>;
+export type PromiseRDwithIdMany<T extends Ru = Ru, P extends string[] = string[]> = PromiseRD<Read<T, P>[]>;
 export type CreateMany<T extends Ru> = (args: {
     actorID: string;
     data: WithoutTimeStamps<T>[];
@@ -46,29 +46,29 @@ export type UpsertMany<T extends Ru> = (args: {
     }[];
     options?: Omit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
-export type ReadAll<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(actorID: string, options?: QueryOptions<P>) => PromiseRDwithIdMany<T>;
+export type ReadAll<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(actorID: string, options?: QueryOptions<P>) => PromiseRDwithIdMany<T, P>;
 export type ReadMany<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
     actorID: string;
     filters: DSO<T>;
     options?: QueryOptions<P>;
-}) => PromiseRDwithIdMany<T>;
+}) => PromiseRDwithIdMany<T, P>;
 export type ReadManyByIds<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
     actorID: string;
     ids: string[];
     filters?: DSO<T>;
     options?: QueryOptions<P>;
-}) => PromiseRDwithIdMany<T>;
+}) => PromiseRDwithIdMany<T, P>;
 export type ReadOne<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
     actorID: string;
     filters: DSO<T>;
     options?: Omit<QueryOptions<P>, 'limit'>;
-}) => PromiseRDwithID<T>;
+}) => PromiseRDwithID<T, P>;
 export type ReadOneById<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
     actorID: string;
     id: string;
     filters?: DSO<T>;
     options?: Omit<QueryOptions<P>, 'limit'>;
-}) => PromiseRDwithID<T>;
+}) => PromiseRDwithID<T, P>;
 export type CountAll = (actorID: string) => PromiseRD<number>;
 export type Count<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
     actorID: string;
