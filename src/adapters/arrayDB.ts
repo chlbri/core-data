@@ -92,6 +92,7 @@ export type ReduceByPermissionsArgs<
 const TEST_SUPER_ADMIN_ID = 'super-admin';
 
 export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
+  // #region Properties
   private _collection: WithEntity<T>[];
   private _colPermissions: EntryWithPermissions<T>[];
   private _schema: CollectionArgs<T>['_schema'];
@@ -101,6 +102,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     CollectionArgs<T>
   >['checkPermissions'];
   private test: Required<CollectionArgs<T>>['test'];
+  // #endregion
 
   /**
    * Only in test mode
@@ -122,7 +124,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     return [];
   }
 
-  __update = (payload: string[], update: WT<T>) => {
+  private __update = (payload: string[], update: WT<T>) => {
     const __db = produce(this._collection, draft => {
       payload.forEach(id => {
         const index = draft.findIndex((data: any) => data._id === id);
@@ -174,13 +176,13 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     );
   }
 
-  private getActor = (ID: string) => {
+  private _getActor = (ID: string) => {
     return this._actors.find(({ actorID }) => ID === actorID);
   };
 
-  private canCreate = (actorID: string) => {
+  canCreate = (actorID: string) => {
     if (this.canCheckPermissions) {
-      const actor = this.getActor(actorID);
+      const actor = this._getActor(actorID);
       if (!actor) return false;
       const superAdmin = actor.superAdmin === true;
       if (superAdmin) return true;
@@ -195,7 +197,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
   canDeleteDoc = (actorID: string) => {
     if (this.canCheckPermissions) {
-      const actor = this.getActor(actorID);
+      const actor = this._getActor(actorID);
       if (!actor) return false;
       const superAdmin = actor.superAdmin === true;
       if (superAdmin) return true;
@@ -208,7 +210,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     return true;
   };
 
-  private generateServerError = (
+  static generateServerError = (
     status: ServerErrorStatus,
     ...messages: string[]
   ) => {
@@ -398,7 +400,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateServerError(
+      return CollectionDB.generateServerError(
         510,
         'This actor cannot create elements',
       );
@@ -440,7 +442,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateServerError(
+      return CollectionDB.generateServerError(
         511,
         'This actor cannot create elements',
       );
@@ -457,7 +459,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateServerError(
+      return CollectionDB.generateServerError(
         512,
         'This actor cannot create elements',
       );
@@ -478,7 +480,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   upsertMany: UpsertMany<T> = async ({ actorID, upserts, options }) => {
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
-      return this.generateServerError(
+      return CollectionDB.generateServerError(
         513,
         'This actor cannot create elements',
       );
@@ -514,7 +516,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       if (alreadyExists > 0) {
         const check = alreadyExists === upserts.length;
         if (check) {
-          return this.generateServerError(513, 'All data exists');
+          return CollectionDB.generateServerError(513, 'All data exists');
         }
         return new ReturnData({
           status: 313,
@@ -570,7 +572,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   // #region Private
   private _canRead = (actorID: string) => {
     if (!this.checkPermissions) return true;
-    const actor = this.getActor(actorID);
+    const actor = this._getActor(actorID);
     if (!actor) return false;
     const isSuperAdmin = actor.superAdmin;
     if (isSuperAdmin) return true;
@@ -713,7 +715,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(520, 'Empty');
+      return CollectionDB.generateServerError(520, 'Empty');
     }
     const rawReads = this._withoutTimestamps();
 
@@ -746,7 +748,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(521, 'Empty');
+      return CollectionDB.generateServerError(521, 'Empty');
     }
 
     const { payload, isRestricted, isLimited } = this._reduceByPermissions(
@@ -813,7 +815,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      this.generateServerError(522, 'Empty');
+      CollectionDB.generateServerError(522, 'Empty');
     }
 
     const { payload, isRestricted, isLimited } = this._reduceByPermissions(
@@ -876,7 +878,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(523, 'Empty');
+      return CollectionDB.generateServerError(523, 'Empty');
     }
 
     const { payload: payloads, isRestricted } = this._reduceByPermissions({
@@ -887,7 +889,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
     const payload = payloads[0];
     if (!payload) {
-      return this.generateServerError(523, 'Not Found');
+      return CollectionDB.generateServerError(523, 'Not Found');
     }
 
     const canRead = this._canReadExtended(payloads);
@@ -928,7 +930,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(523, 'Empty');
+      return CollectionDB.generateServerError(523, 'Empty');
     }
 
     const { payload: payloads, isRestricted } = this._reduceByPermissions({
@@ -940,7 +942,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
     const payload = payloads[0];
     if (!payload) {
-      return this.generateServerError(524, 'Not Found');
+      return CollectionDB.generateServerError(524, 'Not Found');
     }
 
     const canRead = this._canReadExtended(payloads);
@@ -968,13 +970,13 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     const actor = this._canRead(actorID);
 
     if (actor !== true)
-      return this.generateServerError(
+      return CollectionDB.generateServerError(
         525,
         'Only superadmin can count all',
       );
     const out = this._collection.length;
     if (out <= 0) {
-      return this.generateServerError(525, 'Empty');
+      return CollectionDB.generateServerError(525, 'Empty');
     }
     return new ReturnData({ status: 225, payload: out });
   };
@@ -991,7 +993,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(526, 'Empty');
+      return CollectionDB.generateServerError(526, 'Empty');
     }
 
     const payload = this._collection.filter(
@@ -1026,7 +1028,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(527, 'Empty');
+      return CollectionDB.generateServerError(527, 'Empty');
     }
 
     const helper: WithEntity<T>[] = [];
@@ -1069,7 +1071,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
 
     if (!this._collection.length) {
-      return this.generateServerError(528, 'Empty');
+      return CollectionDB.generateServerError(528, 'Empty');
     }
     const db = [...this._collection];
 
