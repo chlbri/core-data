@@ -12,7 +12,7 @@ const input = Object.fromEntries(
       '**/*.test-d.ts',
       '**/*.fixtures.ts',
       './src/config/**/*.ts',
-      './src/types.ts',
+      './src/types/**/*.ts',
     ],
   }).map(file => [
     // This remove `src/` as well as the file extension from each
@@ -44,7 +44,15 @@ export default defineConfig({
     }),
     tscAlias({}),
   ],
-  external: ['ts-deepmerge'],
+  external: [
+    'ts-deepmerge',
+    'zod',
+    '@bemedev/decompose',
+    '@bemedev/return-data',
+    'immer',
+    'nanoid',
+    'dequal',
+  ],
 
   output: [
     {

@@ -273,7 +273,6 @@ describe('#7 => DB', () => {
               data,
               _id: `existed${index + 1}`,
             }));
-            let results: any;
             let rd: ReturnData;
 
             test('#0 => Upsert data', async () => {
@@ -285,9 +284,6 @@ describe('#7 => DB', () => {
 
             test('#1 => the return is a success', () => {
               expect(rd.isSuccess).toBe(true);
-              results = rd.successMap({
-                success: (...args) => ({ ...args }),
-              });
             });
 
             describe('#2 => Datas are registered', () => {

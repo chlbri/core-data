@@ -1,8 +1,7 @@
 import { TypeOf } from 'zod';
-import { Entity } from '../entities';
-import { WithoutId } from './../entities';
 import { PERMISSIONS_STRINGS } from './../schemas/strings';
 import { DSO } from './dso';
+import { Entity, WithoutId } from './entities';
 
 export type GetPermissions<T> = (filters: DSO<T>) => string[];
 

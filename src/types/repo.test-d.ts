@@ -1,5 +1,5 @@
 import { expectNotType, expectType } from 'tsd';
-import { Entity } from '../entities';
+import { Entity } from './entities';
 import {
   CreateMany,
   PromiseRD,

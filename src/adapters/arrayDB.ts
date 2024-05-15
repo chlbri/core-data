@@ -1,8 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { decompose, recompose, type Ru } from '@bemedev/decompose';
 import { ReturnData, ServerErrorStatus } from '@bemedev/return-data';
 import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
 import { merge } from 'ts-deepmerge';
+import { TransformToZodObject, timestampsSchema } from '../schemas';
+import { DSO } from '../types';
+import type { MaybeId, PermissionsArray } from '../types/entities';
 import {
   Actor,
   CollectionPermissions,
@@ -14,9 +18,7 @@ import {
   type SimpleActor,
   type TimeStampsPermissions,
   type WithoutTimeStamps,
-} from '../entities';
-import { TransformToZodObject, timestampsSchema } from '../schemas';
-import { DSO } from '../types';
+} from '../types/entities';
 import type {
   Count,
   CountAll,
@@ -58,7 +60,6 @@ import type {
   UpsertOne,
   WT,
 } from '../types/repo';
-import type { MaybeId, PermissionsArray } from './../entities';
 import {
   inStreamSearchAdapter,
   withProjection,
@@ -266,7 +267,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     return out;
   };
 
-  private _withoutTimestampsPermissions = (...ids: WithId<{}>[]) => {
+  private _withoutTimestampsPermissions = (...ids: WithId<unknown>[]) => {
     const rawPermissions: WithId<
       WithoutTimeStamps<EntryWithPermissions<T>>
     >[] = [];

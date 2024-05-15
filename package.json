@@ -14,7 +14,9 @@
     "config": "pnpm install",
     "config:off": "pnpm run config --offline",
     "ci": "pnpm run config:off && pnpm run lint && pnpm run test && pnpm run build",
-    "rollup": "NODE_OPTIONS=--max-old-space-size=7136 && rollup -c",
+    "ci:online": "pnpm run config && pnpm run lint && pnpm run test && pnpm run build",
+    "ci:admin": "pnpm run rm:lib && pnpm run ci:online",
+    "rollup": "rollup -c",
     "build": "rm -rf lib && pnpm run rollup",
     "rm": "rm -rf node_modules pnpm-lock.yaml",
     "rinit": "pnpm run rm && pnpm run config",
@@ -24,8 +26,8 @@
     "test:coverage": "vitest run --passWithNoTests",
     "test:coverage:typecheck": "pnpm run test:coverage --typecheck",
     "test:watch": "vitest --passWithNoTests",
-    "remove": "rm -rf lib node_modules pnpm-lock.yaml",
-    "clean": "pnpm run remove && pnpm run config",
+    "rm:lib": "rm -rf lib node_modules pnpm-lock.yaml",
+    "clean": "pnpm run rm:lib && pnpm run config",
     "prettier": "prettier --write \"src/**/*.{ts,tsx}\"",
     "eslint": "eslint \"{src/**/*,App}.{ts,tsx}\"",
     "lint": "pnpm run prettier && pnpm run eslint --fix",
@@ -36,6 +38,10 @@
   "devDependencies": {
     "@bemedev/vitest-alias": "^0.0.2",
     "@bemedev/vitest-extended": "^0.3.3",
+    "@bemedev/zod-extended": "^0.1.2",
+    "@bemedev/decompose": "^0.7.1",
+    "ts-deepmerge": "^7.0.0",
+    "@bemedev/return-data": "^0.2.0",
     "@types/object.omit": "^3.0.3",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
@@ -43,7 +49,7 @@
     "dayjs": "^1.11.11",
     "dequal": "^2.0.3",
     "edit-json-file": "^1.8.0",
-    "eslint": "^9.2.0",
+    "eslint": "^8.57.0",
     "faker": "^6.6.6",
     "glob": "^10.3.12",
     "husky": "^9.0.11",
@@ -62,18 +68,15 @@
     "tsd": "^0.31.0",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0",
-    "zod": "^3.23.6",
-    "zod-extended": "^1.0.5"
+    "zod": "^3.23.6"
   },
   "peerDependencies": {
-    "zod": "^3.10.1"
-  },
-  "dependencies": {
     "@bemedev/decompose": "^0.7.1",
     "@bemedev/return-data": "^0.2.0",
-    "@bemedev/zod-extended": "^0.1.2",
-    "deep-merge": "^1.0.0",
-    "hotscript": "^1.0.13",
-    "ts-deepmerge": "^7.0.0"
+    "dequal": "^2.0.3",
+    "immer": "^10.1.1",
+    "nanoid": "^5.0.7",
+    "ts-deepmerge": "^7.0.0",
+    "zod": "^3.23.6"
   }
 }

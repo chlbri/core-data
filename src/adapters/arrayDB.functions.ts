@@ -209,7 +209,7 @@ function _zodDecomposeKeys(shape: z.ZodRawShape, addObjectKey = true) {
           return `${key}.${val1}`;
         },
       );
-      if (!!addObjectKey) out.push(key);
+      if (addObjectKey) out.push(key);
       out.push(...virtuals);
     } else {
       out.push(key);

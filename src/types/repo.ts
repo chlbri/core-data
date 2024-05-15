@@ -5,13 +5,13 @@ import type {
   KeysMatching,
   Recompose,
 } from '@bemedev/decompose';
+import type { DSO } from './dso';
 import type {
   Entity,
   WithId,
   WithoutId,
   WithoutTimeStamps,
-} from '../entities';
-import type { DSO } from './dso';
+} from './entities';
 import type { NOmit } from './helpers';
 
 export type ErrorHandler = (error?: any) => never;

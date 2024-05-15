@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { Entity, WithEntity } from './entities';
 import { entitySchema } from './schemas';
 import type { Not, VSO } from './types/dso';
+import { Entity, WithEntity } from './types/entities';
 
 export function isSearchOperation(val: any): val is VSO {
   return Object.keys(val).every(val => val.startsWith('$'));
