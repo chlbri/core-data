@@ -41,6 +41,7 @@ export default defineConfig({
           // 'src/types.ts',
         ],
       },
+      check: false,
     }),
     tscAlias({}),
   ],

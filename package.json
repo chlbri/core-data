@@ -36,12 +36,11 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@bemedev/decompose": "^0.7.1",
+    "@bemedev/return-data": "^0.3.1",
     "@bemedev/vitest-alias": "^0.0.2",
     "@bemedev/vitest-extended": "^0.3.3",
     "@bemedev/zod-extended": "^0.1.2",
-    "@bemedev/decompose": "^0.7.1",
-    "ts-deepmerge": "^7.0.0",
-    "@bemedev/return-data": "^0.2.0",
     "@types/object.omit": "^3.0.3",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
@@ -64,6 +63,7 @@
     "rollup-plugin-tsc-alias": "^1.1.2",
     "rollup-plugin-typescript2": "^0.36.0",
     "shelljs": "^0.8.5",
+    "ts-deepmerge": "^7.0.0",
     "ts-node": "^10.9.2",
     "tsd": "^0.31.0",
     "typescript": "^5.4.5",

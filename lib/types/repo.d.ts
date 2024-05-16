@@ -1,8 +1,8 @@
-import type { RD, Status } from '@bemedev/return-data';
 import type { Decompose, KeysMatching, Recompose } from '@bemedev/decompose';
 import type { DSO } from './dso';
 import type { Entity, WithId, WithoutId, WithoutTimeStamps } from './entities';
 import type { NOmit } from './helpers';
+import type { RD, Status } from '@bemedev/return-data/lib/types';
 export type ErrorHandler = (error?: any) => never;
 export type QueryOptions<P extends string[] = string[]> = {
     limit?: number;
@@ -21,7 +21,7 @@ export type WI<T> = WithId<DeepPartial<T>>;
 export type WO<T> = WithoutId<DeepPartial<T>>;
 export type WT<T> = WithoutTimeStamps<DeepPartial<T>>;
 export type ReduceByProjection<T extends Ru, P extends Projection<T>> = Recompose<Omit<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
-export type Read<T extends Ru = Ru, P extends string[] = string[]> = P extends Projection<WithId<WithoutTimeStamps<T>>> ? ReduceByProjection<WithId<WithoutTimeStamps<T>>, P> : WithId<WithoutTimeStamps<T>>;
+export type Read<T extends Ru = Ru, P extends string[] = string[]> = P extends Projection<WithId<WithoutTimeStamps<T>>> ? WithId<ReduceByProjection<WithoutTimeStamps<T>, P>> : WithId<WithoutTimeStamps<T>>;
 export type PromiseRDwithID<T extends Ru = Ru, P extends string[] = string[]> = PromiseRD<Read<T, P>>;
 export type PromiseRDwithIdMany<T extends Ru = Ru, P extends string[] = string[]> = PromiseRD<Read<T, P>[]>;
 export type CreateMany<T extends Ru> = (args: {
@@ -46,65 +46,65 @@ export type UpsertMany<T extends Ru> = (args: {
     }[];
     options?: Omit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
-export type ReadAll<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(actorID: string, options?: QueryOptions<P>) => PromiseRDwithIdMany<T, P>;
-export type ReadMany<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type ReadAll<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(actorID: string, options?: QueryOptions<P>) => PromiseRDwithIdMany<T, P>;
+export type ReadMany<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(args: {
     actorID: string;
     filters: DSO<T>;
     options?: QueryOptions<P>;
 }) => PromiseRDwithIdMany<T, P>;
-export type ReadManyByIds<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type ReadManyByIds<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(args: {
     actorID: string;
     ids: string[];
     filters?: DSO<T>;
     options?: QueryOptions<P>;
 }) => PromiseRDwithIdMany<T, P>;
-export type ReadOne<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type ReadOne<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(args: {
     actorID: string;
     filters: DSO<T>;
     options?: Omit<QueryOptions<P>, 'limit'>;
 }) => PromiseRDwithID<T, P>;
-export type ReadOneById<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type ReadOneById<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(args: {
     actorID: string;
     id: string;
     filters?: DSO<T>;
     options?: Omit<QueryOptions<P>, 'limit'>;
 }) => PromiseRDwithID<T, P>;
 export type CountAll = (actorID: string) => PromiseRD<number>;
-export type Count<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type Count<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(args: {
     actorID: string;
     filters: DSO<T>;
     options?: QueryOptions<P>;
 }) => PromiseRD<number>;
-export type UpdateAll<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type UpdateAll<T extends Ru> = (args: {
     actorID: string;
     data: WT<T>;
-    options?: QueryOptions<P>;
+    options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
-export type UpdateMany<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type UpdateMany<T extends Ru> = (args: {
     actorID: string;
     filters: DSO<T>;
     data: WT<T>;
-    options?: QueryOptions<P>;
+    options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
-export type UpdateManyByIds<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type UpdateManyByIds<T extends Ru> = (args: {
     actorID: string;
     ids: string[];
     data: WT<T>;
     filters?: DSO<T>;
-    options?: QueryOptions<P>;
+    options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
-export type UpdateOne<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type UpdateOne<T extends Ru> = (args: {
     actorID: string;
     filters: DSO<T>;
     data: WT<T>;
-    options?: Omit<QueryOptions<P>, 'limit'>;
+    options?: NOmit<QueryOptions, 'limit' | 'projection'>;
 }) => PromiseRD<string>;
-export type UpdateOneById<T extends Ru> = <P extends Projection<WithId<WithoutTimeStamps<T>>>>(args: {
+export type UpdateOneById<T extends Ru> = (args: {
     actorID: string;
     id: string;
     filters?: DSO<T>;
     data: WT<T>;
-    options?: Omit<QueryOptions<P>, 'limit'>;
+    options?: NOmit<QueryOptions, 'limit' | 'projection'>;
 }) => PromiseRD<string>;
 export type SetAll<T extends Ru> = (args: {
     actorID: string;
@@ -238,5 +238,6 @@ export interface Repository<T extends Ru> {
     retrieveOne: RetrieveOne<T>;
     retrieveOneById: RetrieveOneById<T>;
 }
+export type EntityDecompose = Decompose<WithId<WithoutTimeStamps<object>>>;
 export type Repo<T extends Entity> = Repository<T>;
 //# sourceMappingURL=repo.d.ts.map

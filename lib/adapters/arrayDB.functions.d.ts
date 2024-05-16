@@ -15,5 +15,5 @@ export declare function withProjection<T extends Ru, P extends Projection<T> = [
  * @param data Data is already flatten
  * @param projection The shape that the data will take
  */
-export declare function withProjection2<T extends Ru>(data: T, ...projection: string[]): any;
+export declare function withProjection2<T extends Ru, P extends string[]>(data: T, ...projection: P): Omit<T, P[number]>;
 //# sourceMappingURL=arrayDB.functions.d.ts.map

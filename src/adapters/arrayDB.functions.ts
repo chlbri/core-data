@@ -258,13 +258,13 @@ export function withProjection<T extends Ru, P extends Projection<T> = []>(
 }
 
 /**
- * Same as @link {withProjection}, but here the data is already flatten
+ * Same as {@link withProjection}, but here the data is already flatten
  * @param data Data is already flatten
  * @param projection The shape that the data will take
  */
-export function withProjection2<T extends Ru>(
+export function withProjection2<T extends Ru, P extends string[]>(
   data: T,
-  ...projection: string[]
+  ...projection: P
 ) {
   const check = !projection.length;
   if (check) return data;
@@ -273,5 +273,18 @@ export function withProjection2<T extends Ru>(
   cleaned.forEach(key => {
     reduced[key] = data[key];
   });
-  return reduced;
+  return reduced as Omit<T, P[number]>;
+}
+
+export function countOccurences<T extends string[]>(...arr: T) {
+  const entries = arr.map(value => [value, 0]);
+  const out = Object.fromEntries(entries);
+
+  arr.forEach(value => {
+    out[value] += 1;
+  });
+
+  type Out = Record<T[number], number>;
+
+  return out as Out;
 }

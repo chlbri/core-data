@@ -1,3 +1,5 @@
+import type { Ru } from '@bemedev/decompose';
+
 export type TimeStamps = {
   _created: { by: string; at: Date };
   _updated: { by: string; at: Date };
@@ -40,8 +42,8 @@ export type DeepRequired<T> = {
   [P in keyof T]-?: DeepRequired<T[P]>;
 };
 
-export type ObjectWithPermissions<T extends Re> = {
-  [key in keyof T]: T[key] extends Re
+export type ObjectWithPermissions<T extends object = object> = {
+  [key in keyof T]: T[key] extends Ru
     ? ObjectWithPermissions<T[key]>
     : PermissionsArray;
 };

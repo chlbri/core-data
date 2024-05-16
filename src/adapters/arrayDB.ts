@@ -1,23 +1,28 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { decompose, recompose, type Ru } from '@bemedev/decompose';
-import { ReturnData, ServerErrorStatus } from '@bemedev/return-data';
+import { ReturnData } from '@bemedev/return-data';
+import type {
+  PermissionErrorStatus,
+  ServerErrorStatus,
+} from '@bemedev/return-data/lib/types';
 import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
 import { merge } from 'ts-deepmerge';
-import { TransformToZodObject, timestampsSchema } from '../schemas';
-import { DSO } from '../types';
-import type { MaybeId, PermissionsArray } from '../types/entities';
-import {
+import { timestampsSchema, type TransformToZodObject } from '../schemas';
+import type { DSO } from '../types';
+import type {
   Actor,
   CollectionPermissions,
   EntryWithPermissions,
-  Re,
+  MaybeId,
+  PermissionsArray,
+  PermissionsKeys,
+  SimpleActor,
   TimeStamps,
+  TimeStampsPermissions,
   WithEntity,
   WithId,
-  type SimpleActor,
-  type TimeStampsPermissions,
-  type WithoutTimeStamps,
+  WithoutTimeStamps,
 } from '../types/entities';
 import type {
   Count,
@@ -88,6 +93,7 @@ export type ReduceByPermissionsArgs<
   filters?: DSO<T>;
   ids?: string[];
   options?: QueryOptions<P>;
+  key?: PermissionsKeys;
 };
 
 const TEST_SUPER_ADMIN_ID = 'super-admin';
@@ -125,7 +131,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     return [];
   }
 
-  private __update = (payload: string[], update: WT<T>) => {
+  private __update = (update: WT<T>, ...payload: string[]) => {
     const __db = produce(this._collection, draft => {
       payload.forEach(id => {
         const index = draft.findIndex((data: any) => data._id === id);
@@ -300,7 +306,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     _deleted: false,
   });
 
-  static buildCreate<T extends Re>(
+  static buildCreate<T extends Ru>(
     actorID: string,
     data: WT<T>,
     _id = nanoid(),
@@ -581,13 +587,14 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     // const { permissions, reads } = this.getDataAndPermissions(filters);
   };
 
-  private _reduceByPermissions = <
-    P extends Projection<WithId<WithoutTimeStamps<T>>> = [],
+  private reduceByPermissions = <
+    P extends Projection<WithoutTimeStamps<T>> = [],
   >({
     actor,
     filters,
     ids,
     options,
+    key: permissionKey = '__read',
   }: ReduceByPermissionsArgs<T, P>) => {
     const args = ids ? ([filters, ...ids] as const) : ([filters] as const);
     const rawReads = this._withoutTimestamps(...args);
@@ -639,7 +646,9 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     /**
      * Decompose the raw Permission for better permission checking
      */
-    const flattenPermissions = rawPermissions.map(decompose) as any[];
+    const flattenPermissions = rawPermissions.map(
+      decompose,
+    ) as unknown as WithId<Record<string, PermissionsArray>>[];
 
     const payload: Out = [];
 
@@ -650,14 +659,13 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       const permissionsValues = permissionsEntries.map(
         ([, value]) => value,
       );
-      const entriesData = Object.entries(
-        flattenReadsWithProjection[index],
-      );
+
       const check1 = permissionsValues.every(
         (val: any) => val.length === 0,
       );
       if (check1) {
-        payload.push(flattenReadsWithProjection[index] as any);
+        const payload1 = flattenReadsWithProjection[index] as Out[number];
+        payload.push(payload1);
       }
       // #endregion
       else {
@@ -665,7 +673,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
         // #region Check if actor has all required permissions
         permissionsEntries.forEach(([key1, value1]) => {
-          const __read = (value1 as PermissionsArray).__read;
+          const __read = value1[permissionKey];
           const check11 = __read.every(_read =>
             actorPermissions.includes(_read),
           );
@@ -680,6 +688,9 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
         }
         // #endregion
         else {
+          const entriesData = Object.entries(
+            flattenReadsWithProjection[index],
+          );
           // #region Update the read without the restricted keys
           const newRead = entriesData.filter(
             ([key]) => !restrictedKeys.includes(key),
@@ -746,7 +757,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (actor === false) {
       return new ReturnData({
         status: 621,
-        notPermitteds: ['ALL'],
+        // notPermitteds: ['ALL'],
         messages: ['Actor not exists'],
       });
     }
@@ -755,13 +766,11 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(521, 'Empty');
     }
 
-    const { payload, isRestricted, isLimited } = this._reduceByPermissions(
-      {
-        actor,
-        filters,
-        options,
-      },
-    );
+    const { payload, isRestricted, isLimited } = this.reduceByPermissions({
+      actor,
+      filters,
+      options,
+    });
 
     if (!payload.length) {
       return new ReturnData({
@@ -774,7 +783,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (!canRead) {
       return new ReturnData({
         status: 621,
-        notPermitteds: ['ALL'],
+        // notPermitteds: ['ALL'],
         messages: [`Actor ${actorID} cannot read the data`],
         payload,
       });
@@ -802,6 +811,33 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     });
   };
 
+  private generateNoActor = (
+    status: PermissionErrorStatus,
+    actorID?: string,
+  ) =>
+    new ReturnData({
+      status,
+      messages: [
+        `This actor ${actorID ? `${actorID} :` : ':'} not exists`,
+      ],
+    });
+
+  private generateActorCannotPerform = ({
+    status,
+    actorID,
+    action = 'read',
+  }: {
+    status: PermissionErrorStatus;
+    actorID?: string;
+    action?: 'read' | 'update' | 'delete' | 'create';
+  }) =>
+    new ReturnData({
+      status,
+      messages: [
+        `This actor ${actorID ? `${actorID} :` : ':'} cannot ${action} data`,
+      ],
+    });
+
   readManyByIds: ReadManyByIds<T> = async ({
     actorID,
     ids,
@@ -811,25 +847,19 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     const actor = this._canRead(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 622,
-        notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return this.generateNoActor(622, actorID);
     }
 
     if (!this._collection.length) {
       CollectionDB.generateServerError(522, 'Empty');
     }
 
-    const { payload, isRestricted, isLimited } = this._reduceByPermissions(
-      {
-        actor,
-        filters,
-        ids,
-        options,
-      },
-    );
+    const { payload, isRestricted, isLimited } = this.reduceByPermissions({
+      actor,
+      filters,
+      ids,
+      options,
+    });
 
     if (!payload.length) {
       return new ReturnData({
@@ -842,7 +872,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (!canRead) {
       return new ReturnData({
         status: 622,
-        notPermitteds: ['ALL'],
+        // notPermitteds: ['ALL'],
         messages: [`Actor ${actorID} cannot read the data`],
         payload,
       });
@@ -876,7 +906,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (actor === false) {
       return new ReturnData({
         status: 623,
-        notPermitteds: ['ALL'],
+        // notPermitteds: ['ALL'],
         messages: ['Actor not exists'],
       });
     }
@@ -885,7 +915,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(523, 'Empty');
     }
 
-    const { payload: payloads, isRestricted } = this._reduceByPermissions({
+    const { payload: payloads, isRestricted } = this.reduceByPermissions({
       actor,
       filters,
       options,
@@ -900,7 +930,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (!canRead) {
       return new ReturnData({
         status: 623,
-        notPermitteds: ['ALL'],
+        // notPermitteds: ['ALL'],
         messages: [`Actor ${actorID} cannot read the data`],
         payload,
       });
@@ -928,7 +958,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (actor === false) {
       return new ReturnData({
         status: 624,
-        notPermitteds: ['ALL'],
+        // notPermitteds: ['ALL'],
         messages: ['Actor not exists'],
       });
     }
@@ -937,7 +967,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(523, 'Empty');
     }
 
-    const { payload: payloads, isRestricted } = this._reduceByPermissions({
+    const { payload: payloads, isRestricted } = this.reduceByPermissions({
       actor,
       filters,
       options,
@@ -951,12 +981,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
     const canRead = this._canReadExtended(payloads);
     if (!canRead) {
-      return new ReturnData({
-        status: 624,
-        notPermitteds: ['ALL'],
-        messages: [`Actor ${actorID} cannot read the data`],
-        payload,
-      });
+      return this.generateActorCannotPerform({ status: 624, actorID });
     }
 
     if (isRestricted) {
@@ -973,15 +998,17 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   countAll: CountAll = async actorID => {
     const actor = this._canRead(actorID);
 
-    if (actor !== true)
+    if (actor !== true) {
       return CollectionDB.generateServerError(
         525,
         'Only superadmin can count all',
       );
+    }
     const out = this._collection.length;
     if (out <= 0) {
       return CollectionDB.generateServerError(525, 'Empty');
     }
+
     return new ReturnData({ status: 225, payload: out });
   };
 
@@ -989,11 +1016,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     const actor = this._canRead(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 626,
-        notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return this.generateNoActor(626, actorID);
     }
 
     if (!this._collection.length) {
@@ -1007,6 +1030,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (payload <= 0) {
       return new ReturnData({ status: 326, messages: ['Empty'] });
     }
+
     const limit = options?.limit;
     if (limit && limit > payload) {
       return new ReturnData({
@@ -1015,6 +1039,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
         messages: ['Limit Reached'],
       });
     }
+
     return new ReturnData({ status: 226, payload });
   };
 
@@ -1024,11 +1049,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     const actor = this._canRead(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 627,
-        notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return this.generateNoActor(627, actorID);
     }
 
     if (!this._collection.length) {
@@ -1058,6 +1079,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     });
   };
 
+  // #region Update
   updateMany: UpdateMany<T> = async ({
     actorID,
     filters,
@@ -1067,32 +1089,35 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     const actor = this._canRead(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 627,
-        notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return this.generateNoActor(628, actorID);
     }
 
     if (!this._collection.length) {
       return CollectionDB.generateServerError(528, 'Empty');
     }
-    const db = [...this._collection];
 
-    const _filter = inStreamSearchAdapter(filters);
-    const limit = options?.limit;
-    const inputs = db.filter(_filter);
+    const {
+      payload: rawPayload,
+      isLimited,
+      // isRestricted,
+    } = this.reduceByPermissions({
+      actor,
+      filters,
+      options,
+      key: '__update',
+    });
 
-    const payload = inputs.slice(0, limit).map(input => input._id);
-    if (!inputs.length) {
+    if (!rawPayload.length) {
       return new ReturnData({
         status: 328,
         messages: ['Filters kill data'],
       });
     }
 
-    if (limit && limit < inputs.length) {
-      this.__update(payload, data);
+    const payload = rawPayload.map(({ _id }) => _id);
+
+    this.__update(data, ...payload);
+    if (isLimited) {
       return new ReturnData({
         status: 122,
         payload,
@@ -1130,7 +1155,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (!filters) {
       const payload = inputs1.slice(0, limit).map(input => input._id);
 
-      this.__update(payload, data);
+      this.__update(data, ...payload);
       this._collection; //?
       if (limit && limit < inputs1.length) {
         return new ReturnData({
@@ -1149,7 +1174,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     inputs2.length; //?
     const payload = inputs2.slice(0, limit).map(input => input._id);
 
-    this.__update(payload, data);
+    this.__update(data, ...payload);
 
     if (!inputs2.length) {
       return new ReturnData({
@@ -1185,6 +1210,8 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   updateOneById: UpdateOneById<T> = async () => {
     throw undefined;
   };
+  // #endregion
+
   setAll: SetAll<T> = async () => {
     throw undefined;
   };
