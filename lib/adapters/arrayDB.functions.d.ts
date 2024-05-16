@@ -11,9 +11,10 @@ export declare function zodDecomposeKeys<Z extends z.ZodRawShape, B extends bool
  */
 export declare function withProjection<T extends Ru, P extends Projection<T> = []>(data: T, ...projection: P): import("@bemedev/decompose").Recompose<Omit<import("@bemedev/decompose").Decompose<T>, P[number] | `${P[number]}.${string}`>>;
 /**
- * Same as @link {withProjection}, but here the data is already flatten
+ * Same as {@link withProjection}, but here the data is already flatten
  * @param data Data is already flatten
  * @param projection The shape that the data will take
  */
 export declare function withProjection2<T extends Ru, P extends string[]>(data: T, ...projection: P): Omit<T, P[number]>;
+export declare function countOccurences<T extends string[]>(...arr: T): Record<T[number], number>;
 //# sourceMappingURL=arrayDB.functions.d.ts.map
