@@ -569,7 +569,7 @@ describe('#2 => DB', () => {
           expect(len).toBe(10);
         });
 
-        test('#3 => With Projection', async ()=>{
+        test('#3 => With Projection', async () => {
           const rd = await COLLECTION.readAll(SUPER_ADMIN_ID, {
             limit: 10,
           });
