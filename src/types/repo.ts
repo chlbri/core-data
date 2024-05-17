@@ -99,41 +99,31 @@ export type UpsertMany<T extends Ru> = (args: {
 
 // #region Read
 
-export type ReadAll<T extends Ru> = <
-  P extends Projection<WithoutTimeStamps<T>>,
->(
+export type ReadAll<T extends Ru> = <P extends Projection<T>>(
   actorID: string,
   options?: QueryOptions<P>,
 ) => PromiseRDwithIdMany<T, P>;
 
-export type ReadMany<T extends Ru> = <
-  P extends Projection<WithoutTimeStamps<T>>,
->(args: {
+export type ReadMany<T extends Ru> = <P extends Projection<T>>(args: {
   actorID: string;
   filters: DSO<T>;
   options?: QueryOptions<P>;
 }) => PromiseRDwithIdMany<T, P>;
 
-export type ReadManyByIds<T extends Ru> = <
-  P extends Projection<WithoutTimeStamps<T>>,
->(args: {
+export type ReadManyByIds<T extends Ru> = <P extends Projection<T>>(args: {
   actorID: string;
   ids: string[];
   filters?: DSO<T>;
   options?: QueryOptions<P>;
 }) => PromiseRDwithIdMany<T, P>;
 
-export type ReadOne<T extends Ru> = <
-  P extends Projection<WithoutTimeStamps<T>>,
->(args: {
+export type ReadOne<T extends Ru> = <P extends Projection<T>>(args: {
   actorID: string;
   filters: DSO<T>;
   options?: Omit<QueryOptions<P>, 'limit'>;
 }) => PromiseRDwithID<T, P>;
 
-export type ReadOneById<T extends Ru> = <
-  P extends Projection<WithoutTimeStamps<T>>,
->(args: {
+export type ReadOneById<T extends Ru> = <P extends Projection<T>>(args: {
   actorID: string;
   id: string;
   filters?: DSO<T>;

@@ -569,12 +569,42 @@ describe('#2 => DB', () => {
           expect(len).toBe(10);
         });
 
-        test('#3 => With Projection', async () => {
+        test('#3 => With Projection #1', async () => {
           const rd = await COLLECTION.readAll(SUPER_ADMIN_ID, {
             limit: 10,
+            projection: ['age'],
+          });
+
+          rd.successMap({
+            success: (_, payload) => {
+              return payload.forEach(data => {
+                const keys = Object.keys(data);
+                expect(keys.length).toBe(1);
+                expect(keys[0]).toBe('age');
+              });
+            },
           });
         });
-        test('#4 => With Projection and limit');
+        test('#4 => With Projection and limit is reached', async () => {
+          const rd = await COLLECTION.readAll(SUPER_ADMIN_ID, {
+            limit: 50,
+            projection: ['_id'],
+          });
+
+          rd.maybeMap({
+            redirect: (_, payload, messages) => {
+              payload?.forEach(data => {
+                const keys = Object.keys(data);
+                expect(keys.length).toBe(1);
+                expect(keys[0]).toBe('_id');
+              });
+              expect(messages?.[0]).toBe('Limit exceed data available');
+            },
+            else: () => {
+              throw 'not defined';
+            },
+          });
+        });
       });
     });
   });

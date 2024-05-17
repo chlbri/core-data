@@ -10,7 +10,7 @@ import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
 import { merge } from 'ts-deepmerge';
 import type { z } from 'zod';
-import { timestampsSchema, type TransformToZodObject } from '../schemas';
+import { timestampsSchema } from '../schemas';
 import type { DSO } from '../types';
 import type {
   Actor,
@@ -28,8 +28,10 @@ import type {
 } from '../types/entities';
 import type {
   Count,
+  CountAll,
   CreateMany,
   CreateOne,
+  DeleteAll,
   DeleteMany,
   DeleteManyByIds,
   DeleteOne,
@@ -42,11 +44,13 @@ import type {
   ReadManyByIds,
   ReadOne,
   ReadOneById,
+  RemoveAll,
   RemoveMany,
   RemoveManyByIds,
   RemoveOne,
   RemoveOneById,
   Repository,
+  RetrieveAll,
   RetrieveMany,
   RetrieveManyByIds,
   RetrieveOne,
@@ -84,7 +88,7 @@ import {
 //   permissionReader: PermissionsReaderOne<T>;
 // };
 
-export type CollectionArgs<T> = {
+export type CollectionArgs<T extends z.AnyZodObject = z.AnyZodObject> = {
   _schema: T;
   _actors?: Actor[];
   permissions?: CollectionPermissions;
@@ -95,7 +99,7 @@ export type CollectionArgs<T> = {
 
 export type ReduceByPermissionsArgs<
   T extends Ru,
-  P extends Projection<WithId<WithoutTimeStamps<T>>> = [],
+  P extends Projection<T> = [],
 > = {
   actor: SimpleActor | true;
   filters?: DSO<T>;
@@ -103,6 +107,14 @@ export type ReduceByPermissionsArgs<
   options?: QueryOptions<P>;
   key?: PermissionsKeys;
 };
+
+type ZodWT<T extends z.AnyZodObject> = WT<z.infer<T>>;
+type ZodWithoutT<T extends z.AnyZodObject> = WithoutTimeStamps<z.infer<T>>;
+type ZodWithIDandT<T extends z.AnyZodObject> = WithId<
+  WithoutTimeStamps<z.infer<T>>
+>;
+type ZodWithIDandT_P<T extends z.AnyZodObject> = WithId<WT<z.infer<T>>>;
+type ZodWithEntity<T extends z.AnyZodObject> = WithEntity<z.infer<T>>;
 
 const TEST_SUPER_ADMIN_ID = 'super-admin';
 
@@ -112,7 +124,7 @@ export class CollectionDB<T extends z.AnyZodObject>
   // #region Properties
   private _collection: WithEntity<z.infer<T>>[];
   private _colPermissions: EntryWithPermissions<z.infer<T>>[];
-  private _schema: TransformToZodObject<WithoutTimeStamps<z.infer<T>>>;
+  private _schema: CollectionArgs['_schema'];
   private _actors: Required<CollectionArgs<T>>['_actors'] = [];
   private _permissions?: CollectionArgs<T>['permissions'];
   private checkPermissions: Required<
@@ -142,7 +154,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     return [];
   }
 
-  __seed = async (...arr: MaybeId<WithoutTimeStamps<T>>[]) => {
+  __seed = async (...arr: MaybeId<ZodWithoutT<T>>[]) => {
     if (this.test) {
       const out = arr.map(({ _id, ...data }) => {
         return this.generateCreate(TEST_SUPER_ADMIN_ID, data as any, _id);
@@ -251,7 +263,7 @@ export class CollectionDB<T extends z.AnyZodObject>
   }
 
   private _withoutTimestamps = (
-    filters?: DSO<WT<T>>,
+    filters?: DSO<ZodWT<T>>,
     ...ids: string[]
   ) => {
     const collection = this._withoutTimestampsByIds(...ids);
@@ -266,7 +278,7 @@ export class CollectionDB<T extends z.AnyZodObject>
   };
 
   private _withoutTimestampsByIds = (...ids: string[]) => {
-    const mapper = CollectionDB.mapperWithoutTimestamps<T>();
+    const mapper = CollectionDB.mapperWithoutTimestamps<z.infer<T>>();
     const check = !ids.length;
 
     if (check) {
@@ -274,7 +286,7 @@ export class CollectionDB<T extends z.AnyZodObject>
       return out;
     }
 
-    const _filters = ({ _id }: WithEntity<T>) => {
+    const _filters = ({ _id }: ZodWithEntity<T>) => {
       ids.includes(_id);
     };
     const out = this._collection.filter(_filters).map(mapper);
@@ -284,7 +296,7 @@ export class CollectionDB<T extends z.AnyZodObject>
 
   private _withoutTimestampsPermissions = (...ids: WithId<unknown>[]) => {
     const rawPermissions: WithId<
-      WithoutTimeStamps<EntryWithPermissions<T>>
+      WithoutTimeStamps<EntryWithPermissions<z.infer<T>>>
     >[] = [];
 
     // #region Populate constant "rawPermissions"
@@ -300,8 +312,12 @@ export class CollectionDB<T extends z.AnyZodObject>
 
   // #region reduceByPermissions
   private reducePermissionsFirstStep<
-    P extends Projection<WithoutTimeStamps<T>> = [],
-  >(ids?: string[], filters?: DSO<T>, options?: QueryOptions<P>) {
+    P extends Projection<z.infer<T>> = [],
+  >(
+    ids?: string[],
+    filters?: DSO<ZodWithoutT<T>>,
+    options?: QueryOptions<P>,
+  ) {
     const args = ids ? ([filters, ...ids] as const) : ([filters] as const);
     const rawReads = this._withoutTimestamps(...args);
     const isLimited = !!options?.limit && options.limit > rawReads.length;
@@ -309,9 +325,10 @@ export class CollectionDB<T extends z.AnyZodObject>
     const slicedReads = rawReads.slice(0, options?.limit);
     const projection = (options?.projection ?? []) as P;
 
-    type Out = Read<T, P>[];
+    type Out = Read<z.infer<T>, P>[];
     const rawReadsWithProjection = slicedReads.map(data =>
-      withProjection(data, ...projection),
+      //@ts-expect-error okkk
+      withProjection<any, string[]>(data, ...projection),
     ) as Out;
 
     return {
@@ -324,12 +341,8 @@ export class CollectionDB<T extends z.AnyZodObject>
   }
 
   private reducePermissionsSecondStep<
-    P extends Projection<WithoutTimeStamps<T>> = [],
-  >(
-    actor: SimpleActor,
-    slicedReads: WithId<WithoutTimeStamps<T>>[],
-    projection: P,
-  ) {
+    P extends Projection<z.infer<T>> = [],
+  >(actor: SimpleActor, slicedReads: ZodWithIDandT<T>[], projection: P) {
     const actorPermissions = actor.permissions;
     const rawPermissions = this._withoutTimestampsPermissions(
       ...slicedReads,
@@ -344,8 +357,9 @@ export class CollectionDB<T extends z.AnyZodObject>
      * Filter keys with projection
      */
     const flattenReadsWithProjection = flattenReads.map(data => {
+      //@ts-expect-error ookkk
       return withProjection2(data, ...projection);
-    });
+    }) as any[];
 
     /**
      * Decompose the raw Permission for better permission checking
@@ -360,15 +374,13 @@ export class CollectionDB<T extends z.AnyZodObject>
     };
   }
 
-  private reduceByPermissions = <
-    P extends Projection<WithoutTimeStamps<T>> = [],
-  >({
+  private reduceByPermissions = <P extends Projection<z.infer<T>> = []>({
     actor,
     filters,
     ids,
     options,
     key: permissionKey = '__read',
-  }: ReduceByPermissionsArgs<T, P>) => {
+  }: ReduceByPermissionsArgs<z.infer<T>, P>) => {
     const {
       slicedReads,
       projection,
@@ -518,6 +530,7 @@ export class CollectionDB<T extends z.AnyZodObject>
 
   // #region Private
   private generatePermissionCreate = (_id: string) => {
+    //@ts-expect-error oookkk
     const keys = zodDecomposeKeys(this._schema.shape, false);
     const entries = keys.map(key => {
       const permissions = CollectionDB.generateDefaultPermissions();
@@ -539,7 +552,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     return this._colPermissions.push(permission);
   };
 
-  protected pushData = (data: WithEntity<T>) => {
+  protected pushData = (data: ZodWithEntity<T>) => {
     return this._collection.push(data);
   };
 
@@ -562,7 +575,7 @@ export class CollectionDB<T extends z.AnyZodObject>
 
   private generateCreate = (
     actorID: string,
-    data: WithoutTimeStamps<T>,
+    data: ZodWithoutT<T>,
     _id = nanoid(),
   ) => {
     const input = this._createData(actorID, data, _id);
@@ -573,7 +586,7 @@ export class CollectionDB<T extends z.AnyZodObject>
   // #endregion
 
   // #region Creation
-  createMany: CreateMany<T> = async ({
+  createMany: CreateMany<z.infer<T>> = async ({
     actorID,
     data: _datas,
     options,
@@ -619,7 +632,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     return rd;
   };
 
-  createOne: CreateOne<T> = async ({ data, actorID }) => {
+  createOne: CreateOne<z.infer<T>> = async ({ data, actorID }) => {
     // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
@@ -636,7 +649,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     return rd;
   };
 
-  upsertOne: UpsertOne<T> = async ({ actorID, id: _id, data }) => {
+  upsertOne: UpsertOne<z.infer<T>> = async ({
+    actorID,
+    id: _id,
+    data,
+  }) => {
     // #region Check actor's permissions
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
@@ -647,7 +664,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     }
     // #endregion
 
-    const _filter = (data: WithEntity<T>) => _id === data._id;
+    const _filter = (data: ZodWithEntity<T>) => _id === data._id;
     const _exist = this._collection.find(_filter);
     if (_exist) {
       const messages = ['Already exists'];
@@ -658,7 +675,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     }
   };
 
-  upsertMany: UpsertMany<T> = async ({ actorID, upserts, options }) => {
+  upsertMany: UpsertMany<z.infer<T>> = async ({
+    actorID,
+    upserts,
+    options,
+  }) => {
     const canCreate = this.canCreate(actorID);
     if (!canCreate) {
       return CollectionDB.generateServerError(
@@ -669,7 +690,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const inputs = upserts.map(({ _id, data }) => ({
       _id: _id ?? nanoid(),
       ...data,
-    })) as WithId<WT<T>>[];
+    })) as ZodWithIDandT_P<T>[];
 
     let alreadyExists = 0;
 
@@ -678,12 +699,12 @@ export class CollectionDB<T extends z.AnyZodObject>
     if (checkLimit) {
       const limit = options.limit;
       const _inputs = inputs.slice(0, limit).map(({ _id, ...data }) => {
-        const _filter = (data: WithEntity<T>) => _id === data._id;
+        const _filter = (data: ZodWithEntity<T>) => _id === data._id;
         const _exist = this._collection.find(_filter)?._id;
         if (_exist) alreadyExists++;
         else {
           // #region Pushs
-          const _input = CollectionDB.buildCreate<T>(
+          const _input = CollectionDB.buildCreate<z.infer<T>>(
             actorID,
             data as any,
             _id,
@@ -714,13 +735,13 @@ export class CollectionDB<T extends z.AnyZodObject>
     }
 
     inputs.forEach(({ _id, ...data }) => {
-      const _filter = (data: WithEntity<T>) => _id === data._id;
+      const _filter = (data: ZodWithEntity<T>) => _id === data._id;
       const _exist = this._collection.find(_filter)?._id;
 
       if (_exist) alreadyExists++;
       else {
         // #region Pushs
-        const _input = CollectionDB.buildCreate<T>(
+        const _input = CollectionDB.buildCreate<z.infer<T>>(
           actorID,
           data as any,
           _id,
@@ -769,10 +790,7 @@ export class CollectionDB<T extends z.AnyZodObject>
   };
   // #endregion
 
-  readAll: ReadAll<T> = async <P extends Projection<WithoutTimeStamps<T>>>(
-    actorID: string,
-    options?: QueryOptions<P>,
-  ) => {
+  readAll: ReadAll<z.infer<T>> = async (actorID, options) => {
     const actor = this._canPerform(actorID);
     if (actor !== true) {
       const out = new ReturnData({
@@ -788,8 +806,8 @@ export class CollectionDB<T extends z.AnyZodObject>
     const rawReads = this._withoutTimestamps();
     const reads = rawReads.map(read => {
       const _projection = options?.projection;
-      const projection = (_projection ? _projection : []) as P;
-      return withProjection(read, ...projection);
+      const projection = (_projection ? _projection : []) as any;
+      return withProjection(read, ...projection) as any;
     });
 
     const check =
@@ -809,7 +827,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  readMany: ReadMany<T> = async ({ actorID, filters, options }) => {
+  readMany: ReadMany<z.infer<T>> = async ({
+    actorID,
+    filters,
+    options,
+  }) => {
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
@@ -898,7 +920,7 @@ export class CollectionDB<T extends z.AnyZodObject>
       ],
     });
 
-  readManyByIds: ReadManyByIds<T> = async ({
+  readManyByIds: ReadManyByIds<z.infer<T>> = async ({
     actorID,
     ids,
     filters,
@@ -962,7 +984,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  readOne: ReadOne<T> = async ({ actorID, filters, options }) => {
+  readOne: ReadOne<z.infer<T>> = async ({ actorID, filters, options }) => {
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
@@ -987,6 +1009,7 @@ export class CollectionDB<T extends z.AnyZodObject>
       options,
     });
 
+    // @ts-expect-error ookk
     const payload = payloads[0];
     if (!payload) {
       return CollectionDB.generateServerError(523, 'Not Found');
@@ -1014,7 +1037,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     return new ReturnData({ status: 223, payload });
   };
 
-  readOneById: ReadOneById<T> = async ({
+  readOneById: ReadOneById<z.infer<T>> = async ({
     actorID,
     id,
     filters,
@@ -1085,7 +1108,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     return new ReturnData({ status: 225, payload: out });
   };
 
-  count: Count<T> = async ({ actorID, filters, options }) => {
+  count: Count<z.infer<T>> = async ({ actorID, filters, options }) => {
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
@@ -1121,13 +1144,13 @@ export class CollectionDB<T extends z.AnyZodObject>
 
   // #region Update
   // #region Private
-  private __updateAllWithOne = (update: WT<T>, ...ids: string[]) => {
+  private __updateAllWithOne = (update: ZodWT<T>, ...ids: string[]) => {
     const updates = ids.map(_id => ({ ...update, _id }));
 
     return this.__update(...updates);
   };
 
-  private __update = (...updates: WithId<WT<T>>[]) => {
+  private __update = (...updates: ZodWithIDandT_P<T>[]) => {
     let idsNotFound = 0;
     const payload: string[] = [];
 
@@ -1136,7 +1159,7 @@ export class CollectionDB<T extends z.AnyZodObject>
         const fIndex = draft.findIndex(data => data._id === _id);
         if (fIndex !== -1) {
           draft[fIndex] = castDraft(
-            merge(draft[fIndex], update) as WithEntity<T>,
+            merge(draft[fIndex], update) as ZodWithEntity<T>,
           );
           payload.push(_id);
         } else {
@@ -1164,7 +1187,7 @@ export class CollectionDB<T extends z.AnyZodObject>
   }
   // #endregion
 
-  updateAllWithOne: UpdateAllWithOne<T> = async ({
+  updateAllWithOne: UpdateAllWithOne<z.infer<T>> = async ({
     actorID,
     update,
     options,
@@ -1220,7 +1243,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateAll: UpdateAll<T> = async ({ actorID, datas }) => {
+  updateAll: UpdateAll<z.infer<T>> = async ({ actorID, datas }) => {
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
@@ -1244,7 +1267,7 @@ export class CollectionDB<T extends z.AnyZodObject>
           ({
             ...data,
             _id: this._collection[index]?._id,
-          }) as WithId<WT<T>>,
+          }) as ZodWithIDandT_P<T>,
       )
       .filter(data => !!data);
 
@@ -1276,7 +1299,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateManyWithOne: UpdateManyWithOne<T> = async ({
+  updateManyWithOne: UpdateManyWithOne<z.infer<T>> = async ({
     actorID,
     filters,
     update,
@@ -1351,7 +1374,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateMany: UpdateMany<T> = async ({
+  updateMany: UpdateMany<z.infer<T>> = async ({
     actorID,
     filters,
     updates: _updates,
@@ -1422,7 +1445,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateManyByIdsWithOne: UpdateManyByIdsWithOne<T> = async ({
+  updateManyByIdsWithOne: UpdateManyByIdsWithOne<z.infer<T>> = async ({
     ids,
     filters,
     update,
@@ -1493,7 +1516,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateManyByIds: UpdateManyByIds<T> = async ({
+  updateManyByIds: UpdateManyByIds<z.infer<T>> = async ({
     actorID,
     filters,
     updates: _updates,
@@ -1571,7 +1594,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateOne: UpdateOne<T> = async ({
+  updateOne: UpdateOne<z.infer<T>> = async ({
     actorID,
     filters,
     update,
@@ -1647,7 +1670,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  updateOneById: UpdateOneById<T> = async ({
+  updateOneById: UpdateOneById<z.infer<T>> = async ({
     id,
     filters,
     update,
@@ -1724,79 +1747,79 @@ export class CollectionDB<T extends z.AnyZodObject>
   };
   // #endregion
 
-  setAllWithOne: SetAllWithOne<T> = async () => {
+  setAllWithOne: SetAllWithOne<z.infer<T>> = async () => {
     throw undefined;
   };
 
-  setAll: SetAll<T> = async () => {
+  setAll: SetAll<z.infer<T>> = async () => {
     throw undefined;
   };
 
-  setManyWithOne: SetManyWithOne<T> = async () => {
+  setManyWithOne: SetManyWithOne<z.infer<T>> = async () => {
     throw undefined;
   };
 
-  setMany: SetMany<T> = async () => {
+  setMany: SetMany<z.infer<T>> = async () => {
     throw undefined;
   };
 
-  setManyByIdsWithOne: SetManyByIdsWithOne<T> = async () => {
+  setManyByIdsWithOne: SetManyByIdsWithOne<z.infer<T>> = async () => {
     throw undefined;
   };
 
-  setManyByIds: SetManyByIds<T> = async () => {
+  setManyByIds: SetManyByIds<z.infer<T>> = async () => {
     throw undefined;
   };
 
-  setOne: SetOne<T> = async () => {
+  setOne: SetOne<z.infer<T>> = async () => {
     throw undefined;
   };
-  setOneById: SetOneById<T> = async () => {
+  setOneById: SetOneById<z.infer<T>> = async () => {
     throw undefined;
   };
   deleteAll: DeleteAll = async () => {
     throw undefined;
   };
-  deleteMany: DeleteMany<T> = async () => {
+  deleteMany: DeleteMany<z.infer<T>> = async () => {
     throw undefined;
   };
-  deleteManyByIds: DeleteManyByIds<T> = async () => {
+  deleteManyByIds: DeleteManyByIds<z.infer<T>> = async () => {
     throw undefined;
   };
-  deleteOne: DeleteOne<T> = async () => {
+  deleteOne: DeleteOne<z.infer<T>> = async () => {
     throw undefined;
   };
-  deleteOneById: DeleteOneById<T> = async () => {
+  deleteOneById: DeleteOneById<z.infer<T>> = async () => {
     throw undefined;
   };
   retrieveAll: RetrieveAll = async () => {
     throw undefined;
   };
-  retrieveMany: RetrieveMany<T> = async () => {
+  retrieveMany: RetrieveMany<z.infer<T>> = async () => {
     throw undefined;
   };
-  retrieveManyByIds: RetrieveManyByIds<T> = async () => {
+  retrieveManyByIds: RetrieveManyByIds<z.infer<T>> = async () => {
     throw undefined;
   };
-  retrieveOne: RetrieveOne<T> = async () => {
+  retrieveOne: RetrieveOne<z.infer<T>> = async () => {
     throw undefined;
   };
-  retrieveOneById: RetrieveOneById<T> = async () => {
+  retrieveOneById: RetrieveOneById<z.infer<T>> = async () => {
     throw undefined;
   };
   removeAll: RemoveAll = async () => {
     throw undefined;
   };
-  removeMany: RemoveMany<T> = async () => {
+  removeMany: RemoveMany<z.infer<T>> = async () => {
     throw undefined;
   };
-  removeManyByIds: RemoveManyByIds<T> = async () => {
+  removeManyByIds: RemoveManyByIds<z.infer<T>> = async () => {
     throw undefined;
   };
-  removeOne: RemoveOne<T> = async () => {
+  removeOne: RemoveOne<z.infer<T>> = async () => {
     throw undefined;
   };
-  removeOneById: RemoveOneById<T> = async () => {
+  removeOneById: RemoveOneById<z.infer<T>> = async () => {
     throw undefined;
   };
 }
