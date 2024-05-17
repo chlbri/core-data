@@ -1141,7 +1141,7 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
 
   static generateIdsNotFound(
     status: RedirectStatus,
-    payload: string[],
+    payload: string[] | string,
     ids = 0,
   ) {
     return new ReturnData({
@@ -1339,8 +1339,75 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
     });
   };
 
-  updateMany: UpdateMany<T> = async () => {
-    throw undefined;
+  updateMany: UpdateMany<T> = async ({
+    actorID,
+    filters,
+    updates: _updates,
+    options,
+  }) => {
+    const actor = this._canPerform(actorID);
+
+    if (actor === false) {
+      return this.generateNoActor(634, actorID);
+    }
+
+    if (!this._collection.length) {
+      return CollectionDB.generateServerError(534, 'Empty');
+    }
+
+    const {
+      payload: rawPayload,
+      isLimited,
+      isRestricted,
+      notPermitteds,
+    } = this.reduceByPermissions({
+      actor,
+      filters,
+      options,
+      key: '__update',
+    });
+
+    if (!rawPayload.length) {
+      return new ReturnData({
+        status: 334,
+        messages: ['Filters kill data'],
+      });
+    }
+
+    const updates = rawPayload.map((data, index) => {
+      const update = _updates[index];
+      const out = intersectObjects(data, { ...update, _id: data._id });
+      return out as WithId<WT<T>>;
+    });
+
+    const { payload, idsNotFound } = this.__update(...updates);
+
+    const someIdsAreNotFound = idsNotFound > 0;
+    if (someIdsAreNotFound) {
+      return CollectionDB.generateIdsNotFound(332, payload, idsNotFound);
+    }
+
+    if (isRestricted) {
+      return new ReturnData({
+        status: 634,
+        payload,
+        notPermitteds,
+        messages: ['Some keys are restricted'],
+      });
+    }
+
+    if (isLimited) {
+      return new ReturnData({
+        status: 134,
+        payload,
+        messages: ['Limit Reached'],
+      });
+    }
+
+    return new ReturnData({
+      status: 234,
+      payload,
+    });
   };
 
   updateManyByIdsWithOne: UpdateManyByIdsWithOne<T> = async ({
@@ -1353,16 +1420,17 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(631, actorID);
+      return this.generateNoActor(633, actorID);
     }
     if (!this._collection.length) {
-      return new ReturnData({ status: 523, messages: ['Empty'] });
+      return new ReturnData({ status: 533, messages: ['Empty'] });
     }
 
     const {
       payload: rawPayload,
       isLimited,
-      // isRestricted,
+      isRestricted,
+      notPermitteds,
     } = this.reduceByPermissions({
       actor,
       ids,
@@ -1383,80 +1451,264 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
       return out as WithId<WT<T>>;
     });
 
-    const db = [...this._collection];
-    const limit = options?.limit;
+    const { payload, idsNotFound } = this.__update(...updates);
 
-    // const mapper = (_data: WI<T>) => ({ ..._data, ...data });
-
-    const inputs1 = db.filter(data => ids.includes(data._id));
-
-    if (!inputs1.length) {
-      return new ReturnData({
-        status: 323,
-        messages: ['ids cannot reach DB'],
-      });
+    const someIdsAreNotFound = idsNotFound > 0;
+    if (someIdsAreNotFound) {
+      return CollectionDB.generateIdsNotFound(333, payload, idsNotFound);
     }
-    if (!filters) {
-      const payload = inputs1.slice(0, limit).map(input => input._id);
 
-      this.__updateAllWithOne(update, ...payload);
-      this._collection; //?
-      if (limit && limit < inputs1.length) {
-        return new ReturnData({
-          status: 123,
-          payload,
-          messages: ['Limit Reached'],
-        });
-      }
+    if (isRestricted) {
       return new ReturnData({
-        status: 223,
+        status: 633,
         payload,
+        notPermitteds,
+        messages: ['Some keys are restricted'],
       });
     }
-    const _filter = inStreamSearchAdapter(filters);
-    const inputs2 = inputs1.filter(_filter);
-    inputs2.length; //?
-    const payload = inputs2.slice(0, limit).map(input => input._id);
 
-    this.__updateAllWithOne(update, ...payload);
-
-    if (!inputs2.length) {
+    if (isLimited) {
       return new ReturnData({
-        status: 523,
-        messages: ['Filters kill data'],
-      });
-    }
-    if (limit && limit < inputs2.length) {
-      return new ReturnData({
-        status: 123,
+        status: 133,
         payload,
         messages: ['Limit Reached'],
       });
     }
 
-    if (inputs2.length < inputs1.length) {
-      return new ReturnData({
-        status: 323,
-        payload,
-        messages: ['Filters slice datas'],
-      });
-    }
-
     return new ReturnData({
-      status: 223,
+      status: 233,
       payload,
     });
   };
 
-  updateManyByIds: UpdateManyByIds<T> = async () => {
-    throw undefined;
+  updateManyByIds: UpdateManyByIds<T> = async ({
+    actorID,
+    filters,
+    updates: _updates,
+    ids,
+    options,
+  }) => {
+    const actor = this._canPerform(actorID);
+
+    if (actor === false) {
+      return this.generateNoActor(635, actorID);
+    }
+
+    if (!this._collection.length) {
+      return CollectionDB.generateServerError(535, 'Empty');
+    }
+
+    const {
+      payload: rawPayload,
+      isLimited,
+      isRestricted,
+      notPermitteds,
+    } = this.reduceByPermissions({
+      actor,
+      filters,
+      options,
+      ids,
+      key: '__update',
+    });
+
+    if (!rawPayload.length) {
+      return new ReturnData({
+        status: 335,
+        messages: ['Filters kill data'],
+      });
+    }
+
+    const updates = rawPayload.map((data, index) => {
+      const update = _updates[index];
+      const out = intersectObjects(data, { ...update, _id: data._id });
+      return out as WithId<WT<T>>;
+    });
+
+    const { payload, idsNotFound } = this.__update(...updates);
+
+    // this.__updateAllWithOne(update);
+
+    // const payload = rawPayload.map(({ _id }) => _id);
+    // this.__updateAllWithOne(update, ...payload);
+
+    const someIdsAreNotFound = idsNotFound > 0;
+    if (someIdsAreNotFound) {
+      return CollectionDB.generateIdsNotFound(332, payload, idsNotFound);
+    }
+
+    if (isRestricted) {
+      return new ReturnData({
+        status: 635,
+        payload,
+        notPermitteds,
+        messages: ['Some keys are restricted'],
+      });
+    }
+
+    if (isLimited) {
+      return new ReturnData({
+        status: 135,
+        payload,
+        messages: ['Limit Reached'],
+      });
+    }
+
+    return new ReturnData({
+      status: 235,
+      payload,
+    });
   };
 
-  updateOne: UpdateOne<T> = async () => {
-    throw undefined;
+  updateOne: UpdateOne<T> = async ({
+    actorID,
+    filters,
+    update,
+    options,
+  }) => {
+    const actor = this._canPerform(actorID);
+
+    if (actor === false) {
+      return this.generateNoActor(636, actorID);
+    }
+
+    if (!this._collection.length) {
+      return CollectionDB.generateServerError(536, 'Empty');
+    }
+
+    const {
+      payload: rawPayload,
+      isLimited,
+      isRestricted,
+      notPermitteds,
+    } = this.reduceByPermissions({
+      actor,
+      filters,
+      options,
+      key: '__update',
+    });
+
+    if (!rawPayload.length) {
+      return new ReturnData({
+        status: 336,
+        messages: ['Filters kill data'],
+      });
+    }
+    const data = rawPayload[0];
+
+    const _update = intersectObjects(data, { ...update, _id: data._id });
+
+    const { payload: payloads, idsNotFound } = this.__update(_update);
+    const payload = payloads[0];
+    // this.__updateAllWithOne(update);
+
+    // const payload = rawPayload.map(({ _id }) => _id);
+    // this.__updateAllWithOne(update, ...payload);
+    if (!payload) {
+      return CollectionDB.generateServerError(536, 'Cannot Perform');
+    }
+
+    const someIdsAreNotFound = idsNotFound > 0;
+    if (someIdsAreNotFound) {
+      return CollectionDB.generateIdsNotFound(336, payload, idsNotFound);
+    }
+
+    if (isRestricted) {
+      return new ReturnData({
+        status: 636,
+        payload,
+        notPermitteds,
+        messages: ['Some keys are restricted'],
+      });
+    }
+
+    if (isLimited) {
+      return new ReturnData({
+        status: 132,
+        payload,
+        messages: ['Limit Reached'],
+      });
+    }
+
+    return new ReturnData({
+      status: 232,
+      payload,
+    });
   };
-  updateOneById: UpdateOneById<T> = async () => {
-    throw undefined;
+
+  updateOneById: UpdateOneById<T> = async ({
+    id,
+    filters,
+    update,
+    options,
+    actorID,
+  }) => {
+    const actor = this._canPerform(actorID);
+
+    if (actor === false) {
+      return this.generateNoActor(637, actorID);
+    }
+    if (!this._collection.length) {
+      return new ReturnData({ status: 537, messages: ['Empty'] });
+    }
+
+    const {
+      payload: rawPayload,
+      isLimited,
+      isRestricted,
+      notPermitteds,
+    } = this.reduceByPermissions({
+      actor,
+      ids: [id],
+      filters,
+      options,
+      key: '__update',
+    });
+
+    if (!rawPayload.length) {
+      return new ReturnData({
+        status: 337,
+        messages: ['Filters kill data'],
+      });
+    }
+
+    const data = rawPayload[0];
+
+    const _update = intersectObjects(data, { ...update, _id: data._id });
+
+    const { payload: payloads, idsNotFound } = this.__update(_update);
+
+    const payload = payloads[0];
+
+    if (!payload) {
+      return CollectionDB.generateServerError(537, 'Cannot Perform');
+    }
+
+    const someIdsAreNotFound = idsNotFound > 0;
+    if (someIdsAreNotFound) {
+      return CollectionDB.generateIdsNotFound(337, payload, idsNotFound);
+    }
+
+    if (isRestricted) {
+      return new ReturnData({
+        status: 637,
+        payload,
+        notPermitteds,
+        messages: ['Some keys are restricted'],
+      });
+    }
+
+    if (isLimited) {
+      return new ReturnData({
+        status: 137,
+        payload,
+        messages: ['Limit Reached'],
+      });
+    }
+
+    return new ReturnData({
+      status: 237,
+      payload,
+    });
   };
   // #endregion
 
