@@ -208,7 +208,7 @@ describe('#1 => Functions', () => {
   });
 });
 
-describe('#7 => DB', () => {
+describe('#2 => DB', () => {
   const SUPER_ADMIN_ID = 'super-admin';
 
   const _schema1 = z.object({
@@ -485,10 +485,96 @@ describe('#7 => DB', () => {
     });
 
     describe('#1 => ReadAll', () => {
-      test('#0 => Not superAdmin', () => {});
+      test('#0 => Not superAdmin', async () => {
+        const rd = await COLLECTION.readAll('not super-admin');
+        const { status, payload, notPermitteds, message } = rd.maybeMap({
+          else: () => {
+            throw 'not definde';
+          },
+          permission: (status, payload, notPermitteds, messages) => {
+            return {
+              status,
+              payload,
+              notPermitteds,
+              message: messages?.[0],
+            };
+          },
+        });
 
-      describe('#1 => With Options', () => {
-        test('#1 => Options limit data', () => {});
+        expect(status).toBe(620);
+        expect(payload).toBeUndefined();
+        expect(notPermitteds).toBeUndefined();
+        expect(message).toBe('Only SuperAdmin can read all data');
+      });
+
+      test('#1 => DB is empty', async () => {
+        const rd = await COLLECTION.readAll(SUPER_ADMIN_ID);
+        const { status, message } = rd.maybeMap({
+          else: () => {
+            throw 'not defined';
+          },
+          server: (status, messages) => {
+            return {
+              status,
+              message: messages?.[0],
+            };
+          },
+        });
+
+        expect(status).toBe(520);
+        expect(message).toBe('DB is empty');
+      });
+
+      test('#2 => Add 20 DATA', async () => {
+        const seed = generateSeed(20);
+        await COLLECTION.__seed(...seed);
+      });
+
+      describe('#3 => With Options', () => {
+        test('#1 => Limit exceed data available', async () => {
+          const rd = await COLLECTION.readAll(SUPER_ADMIN_ID, {
+            limit: 50,
+          });
+          const { status, message, payload } = rd.maybeMap({
+            else: () => {
+              throw 'not defined';
+            },
+            redirect: (status, payload, messages) => {
+              return {
+                status,
+                payload,
+                message: messages?.[0],
+              };
+            },
+          });
+
+          const len = payload?.length;
+
+          expect(status).toBe(320);
+          expect(len).toBe(20);
+          expect(message).toBe('Limit exceed data available');
+        });
+
+        test('#2 => Limit not exceed data available', async () => {
+          const rd = await COLLECTION.readAll(SUPER_ADMIN_ID, {
+            limit: 10,
+          });
+          const { status, payload } = rd.successMap({
+            success: (status, payload) => ({ status, payload }),
+          });
+
+          const len = payload?.length;
+
+          expect(status).toBe(220);
+          expect(len).toBe(10);
+        });
+
+        test('#3 => With Projection', async ()=>{
+          const rd = await COLLECTION.readAll(SUPER_ADMIN_ID, {
+            limit: 10,
+          });
+        });
+        test('#4 => With Projection and limit');
       });
     });
   });

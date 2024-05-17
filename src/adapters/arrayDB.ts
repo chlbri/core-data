@@ -9,6 +9,7 @@ import type {
 import { castDraft, produce } from 'immer';
 import { nanoid } from 'nanoid';
 import { merge } from 'ts-deepmerge';
+import type { z } from 'zod';
 import { timestampsSchema, type TransformToZodObject } from '../schemas';
 import type { DSO } from '../types';
 import type {
@@ -27,10 +28,8 @@ import type {
 } from '../types/entities';
 import type {
   Count,
-  CountAll,
   CreateMany,
   CreateOne,
-  DeleteAll,
   DeleteMany,
   DeleteManyByIds,
   DeleteOne,
@@ -43,13 +42,11 @@ import type {
   ReadManyByIds,
   ReadOne,
   ReadOneById,
-  RemoveAll,
   RemoveMany,
   RemoveManyByIds,
   RemoveOne,
   RemoveOneById,
   Repository,
-  RetrieveAll,
   RetrieveMany,
   RetrieveManyByIds,
   RetrieveOne,
@@ -88,7 +85,7 @@ import {
 // };
 
 export type CollectionArgs<T> = {
-  _schema: TransformToZodObject<WithoutTimeStamps<T>>;
+  _schema: T;
   _actors?: Actor[];
   permissions?: CollectionPermissions;
   checkPermissions?: boolean;
@@ -109,11 +106,13 @@ export type ReduceByPermissionsArgs<
 
 const TEST_SUPER_ADMIN_ID = 'super-admin';
 
-export class CollectionDB<T extends Ru> implements Repository<T> {
+export class CollectionDB<T extends z.AnyZodObject>
+  implements Repository<z.infer<T>>
+{
   // #region Properties
-  private _collection: WithEntity<T>[];
-  private _colPermissions: EntryWithPermissions<T>[];
-  private _schema: CollectionArgs<T>['_schema'];
+  private _collection: WithEntity<z.infer<T>>[];
+  private _colPermissions: EntryWithPermissions<z.infer<T>>[];
+  private _schema: TransformToZodObject<WithoutTimeStamps<z.infer<T>>>;
   private _actors: Required<CollectionArgs<T>>['_actors'] = [];
   private _permissions?: CollectionArgs<T>['permissions'];
   private checkPermissions: Required<
@@ -270,13 +269,16 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
     const mapper = CollectionDB.mapperWithoutTimestamps<T>();
     const check = !ids.length;
 
-    if (!check) {
-      return this._collection.map(mapper);
+    if (check) {
+      const out = this._collection.map(mapper);
+      return out;
     }
+
     const _filters = ({ _id }: WithEntity<T>) => {
       ids.includes(_id);
     };
     const out = this._collection.filter(_filters).map(mapper);
+
     return out;
   };
 
@@ -767,7 +769,10 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
   };
   // #endregion
 
-  readAll: ReadAll<T> = async (actorID, options) => {
+  readAll: ReadAll<T> = async <P extends Projection<WithoutTimeStamps<T>>>(
+    actorID: string,
+    options?: QueryOptions<P>,
+  ) => {
     const actor = this._canPerform(actorID);
     if (actor !== true) {
       const out = new ReturnData({
@@ -778,9 +783,14 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(520, 'Empty');
+      return CollectionDB.generateServerError(520, 'DB is empty');
     }
     const rawReads = this._withoutTimestamps();
+    const reads = rawReads.map(read => {
+      const _projection = options?.projection;
+      const projection = (_projection ? _projection : []) as P;
+      return withProjection(read, ...projection);
+    });
 
     const check =
       !!options && options.limit && options.limit > rawReads.length;
@@ -788,14 +798,14 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
     if (check) {
       return new ReturnData({
         status: 320,
-        payload: rawReads.slice(0, options.limit),
+        payload: reads.slice(0, options.limit),
         messages: ['Limit exceed data available'],
       });
     }
 
     return new ReturnData({
       status: 220,
-      payload: rawReads.slice(0, options?.limit),
+      payload: reads.slice(0, options?.limit),
     });
   };
 
@@ -1057,6 +1067,7 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
     return new ReturnData({ status: 224, payload });
   };
 
+  // #region Count
   countAll: CountAll = async actorID => {
     const actor = this._canPerform(actorID);
 
@@ -1104,6 +1115,7 @@ export class CollectionDB<T extends Ru> implements Repository<T> {
 
     return new ReturnData({ status: 226, payload });
   };
+  // #endregion
 
   // #endregion
 
