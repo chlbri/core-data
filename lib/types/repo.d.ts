@@ -94,7 +94,7 @@ export type UpdateManyWithOne<T extends Ru> = (args: {
 export type UpdateMany<T extends Ru> = (args: {
     actorID: string;
     filters: DSO<T>;
-    data: WT<T>[];
+    updates: WT<T>[];
     options?: NOmit<QueryOptions, 'projection' | 'limit'>;
 }) => PromiseRD<string[]>;
 export type UpdateManyByIdsWithOne<T extends Ru> = (args: {
@@ -107,21 +107,21 @@ export type UpdateManyByIdsWithOne<T extends Ru> = (args: {
 export type UpdateManyByIds<T extends Ru> = (args: {
     actorID: string;
     ids: string[];
-    data: WT<T>[];
+    updates: WT<T>[];
     filters?: DSO<T>;
     options?: NOmit<QueryOptions, 'projection' | 'limit'>;
 }) => PromiseRD<string[]>;
 export type UpdateOne<T extends Ru> = (args: {
     actorID: string;
     filters: DSO<T>;
-    data: WT<T>;
+    update: WT<T>;
     options?: NOmit<QueryOptions, 'limit' | 'projection'>;
 }) => PromiseRD<string>;
 export type UpdateOneById<T extends Ru> = (args: {
     actorID: string;
     id: string;
     filters?: DSO<T>;
-    data: WT<T>;
+    update: WT<T>;
     options?: NOmit<QueryOptions, 'limit' | 'projection'>;
 }) => PromiseRD<string>;
 export type SetAllWithOne<T extends Ru> = (args: {
