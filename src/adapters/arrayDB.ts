@@ -3,6 +3,7 @@ import { decompose, recompose, type Ru } from '@bemedev/decompose';
 import { ReturnData } from '@bemedev/return-data';
 import type {
   PermissionErrorStatus,
+  RedirectStatus,
   ServerErrorStatus,
 } from '@bemedev/return-data/lib/types';
 import { castDraft, produce } from 'immer';
@@ -47,19 +48,26 @@ import type {
   RemoveManyByIds,
   RemoveOne,
   RemoveOneById,
+  Repository,
   RetrieveAll,
   RetrieveMany,
   RetrieveManyByIds,
   RetrieveOne,
   RetrieveOneById,
   SetAll,
+  SetAllWithOne,
   SetMany,
   SetManyByIds,
+  SetManyByIdsWithOne,
+  SetManyWithOne,
   SetOne,
   SetOneById,
   UpdateAll,
+  UpdateAllWithOne,
   UpdateMany,
   UpdateManyByIds,
+  UpdateManyByIdsWithOne,
+  UpdateManyWithOne,
   UpdateOne,
   UpdateOneById,
   UpsertMany,
@@ -67,7 +75,9 @@ import type {
   WT,
 } from '../types/repo';
 import {
+  countOccurences,
   inStreamSearchAdapter,
+  intersectObjects,
   withProjection,
   withProjection2,
   zodDecomposeKeys,
@@ -83,6 +93,7 @@ export type CollectionArgs<T> = {
   permissions?: CollectionPermissions;
   checkPermissions?: boolean;
   test?: boolean;
+  name?: string;
 };
 
 export type ReduceByPermissionsArgs<
@@ -98,7 +109,7 @@ export type ReduceByPermissionsArgs<
 
 const TEST_SUPER_ADMIN_ID = 'super-admin';
 
-export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
+export class CollectionDB<T extends Ru> implements Repository<T> {
   // #region Properties
   private _collection: WithEntity<T>[];
   private _colPermissions: EntryWithPermissions<T>[];
@@ -109,6 +120,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     CollectionArgs<T>
   >['checkPermissions'];
   private test: Required<CollectionArgs<T>>['test'];
+  name: string;
   // #endregion
 
   /**
@@ -131,21 +143,6 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     return [];
   }
 
-  private __update = (update: WT<T>, ...payload: string[]) => {
-    const __db = produce(this._collection, draft => {
-      payload.forEach(id => {
-        const index = draft.findIndex((data: any) => data._id === id);
-        if (index !== -1) {
-          draft[index] = castDraft(
-            merge(draft[index], update) as WithEntity<T>,
-          );
-        }
-      });
-    });
-    this._rinitDB();
-    this._collection.push(...__db);
-  };
-
   __seed = async (...arr: MaybeId<WithoutTimeStamps<T>>[]) => {
     if (this.test) {
       const out = arr.map(({ _id, ...data }) => {
@@ -162,6 +159,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     permissions,
     checkPermissions,
     test = true,
+    name = 'test',
   }: CollectionArgs<T>) {
     // #region Constructore Variables
     this._schema = _schema;
@@ -169,6 +167,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     this._permissions = permissions;
     this.checkPermissions = !!checkPermissions;
     this.test = !!test;
+    this.name = name;
     // #endregion
 
     this._collection = [];
@@ -221,6 +220,11 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     status: ServerErrorStatus,
     ...messages: string[]
   ) => {
+    return new ReturnData({ status, messages });
+  };
+
+  static generateEmptyDBError = (status: ServerErrorStatus) => {
+    const messages = [`This collection (${this.name}) is empty`];
     return new ReturnData({ status, messages });
   };
 
@@ -291,6 +295,174 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     }
     return rawPermissions;
   };
+
+  // #region reduceByPermissions
+  private reducePermissionsFirstStep<
+    P extends Projection<WithoutTimeStamps<T>> = [],
+  >(ids?: string[], filters?: DSO<T>, options?: QueryOptions<P>) {
+    const args = ids ? ([filters, ...ids] as const) : ([filters] as const);
+    const rawReads = this._withoutTimestamps(...args);
+    const isLimited = !!options?.limit && options.limit > rawReads.length;
+
+    const slicedReads = rawReads.slice(0, options?.limit);
+    const projection = (options?.projection ?? []) as P;
+
+    type Out = Read<T, P>[];
+    const rawReadsWithProjection = slicedReads.map(data =>
+      withProjection(data, ...projection),
+    ) as Out;
+
+    return {
+      slicedReads,
+      projection,
+      isLimited,
+      rawReads,
+      rawReadsWithProjection,
+    };
+  }
+
+  private reducePermissionsSecondStep<
+    P extends Projection<WithoutTimeStamps<T>> = [],
+  >(
+    actor: SimpleActor,
+    slicedReads: WithId<WithoutTimeStamps<T>>[],
+    projection: P,
+  ) {
+    const actorPermissions = actor.permissions;
+    const rawPermissions = this._withoutTimestampsPermissions(
+      ...slicedReads,
+    );
+
+    /**
+     * Decompose the raw Reads for better permission checking
+     */
+    const flattenReads = slicedReads.map(decompose);
+
+    /**
+     * Filter keys with projection
+     */
+    const flattenReadsWithProjection = flattenReads.map(data => {
+      return withProjection2(data, ...projection);
+    });
+
+    /**
+     * Decompose the raw Permission for better permission checking
+     */
+    const flattenPermissions = rawPermissions.map(
+      decompose,
+    ) as unknown as WithId<Record<string, PermissionsArray>>[];
+    return {
+      flattenPermissions,
+      flattenReadsWithProjection,
+      actorPermissions,
+    };
+  }
+
+  private reduceByPermissions = <
+    P extends Projection<WithoutTimeStamps<T>> = [],
+  >({
+    actor,
+    filters,
+    ids,
+    options,
+    key: permissionKey = '__read',
+  }: ReduceByPermissionsArgs<T, P>) => {
+    const {
+      slicedReads,
+      projection,
+      isLimited,
+      rawReads,
+      rawReadsWithProjection,
+    } = this.reducePermissionsFirstStep<P>(ids, filters, options);
+
+    type Out = typeof rawReadsWithProjection;
+
+    /**
+     * Check if some records are resticted by permissions
+     */
+    let isRestricted = false;
+
+    /**
+     * Grant all permissions for superAdmin
+     */
+    if (actor === true) {
+      return { payload: rawReadsWithProjection, isRestricted, isLimited };
+    }
+
+    if (slicedReads.length === 0) {
+      return { payload: rawReadsWithProjection, isRestricted, isLimited };
+    }
+
+    const {
+      flattenPermissions,
+      flattenReadsWithProjection,
+      actorPermissions,
+    } = this.reducePermissionsSecondStep<P>(
+      actor,
+      slicedReads,
+      projection,
+    );
+
+    const payload: Out = [];
+    const restrictedKeys: string[] = [];
+
+    flattenPermissions.forEach(({ _id, ...perm }, index) => {
+      const permissionsEntries = Object.entries(perm);
+
+      // #region Check if the data has no permissions restrictions
+      const permissionsValues = permissionsEntries.map(
+        ([, value]) => value,
+      );
+
+      const check1 = permissionsValues.every(
+        (val: any) => val.length === 0,
+      );
+      if (check1) {
+        const payload1 = flattenReadsWithProjection[index] as Out[number];
+        payload.push(payload1);
+      }
+      // #endregion
+      else {
+        // #region Check if actor has all required permissions
+        permissionsEntries.forEach(([key1, value1]) => {
+          const __read = value1[permissionKey];
+          const check11 = __read.every(_read =>
+            actorPermissions.includes(_read),
+          );
+          if (!check11) {
+            restrictedKeys.push(key1);
+            if (isRestricted === false) isRestricted = true;
+          }
+        });
+        const check2 = restrictedKeys.length === 0;
+        if (check2) {
+          payload.push(rawReads[index] as any);
+        }
+        // #endregion
+        else {
+          const entriesData = Object.entries(
+            flattenReadsWithProjection[index],
+          );
+          // #region Update the data without the restricted keys
+          const newRead = entriesData.filter(
+            ([key]) => !restrictedKeys.includes(key),
+          );
+
+          const updatedRead = recompose(Object.fromEntries(newRead));
+          payload.push({
+            _id,
+            ...updatedRead,
+          } as any);
+          // #endregion
+        }
+      }
+    });
+
+    const notPermitteds = countOccurences(...restrictedKeys);
+
+    return { payload, isRestricted, isLimited, notPermitteds };
+  };
+  // #endregion
 
   // #region Create
   // #region Static
@@ -575,9 +747,8 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   // #endregion
 
   // #region Read
-
   // #region Private
-  private _canRead = (actorID: string) => {
+  private _canPerform = (actorID: string) => {
     if (!this.checkPermissions) return true;
     const actor = this._getActor(actorID);
     if (!actor) return false;
@@ -587,140 +758,17 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     // const { permissions, reads } = this.getDataAndPermissions(filters);
   };
 
-  private reduceByPermissions = <
-    P extends Projection<WithoutTimeStamps<T>> = [],
-  >({
-    actor,
-    filters,
-    ids,
-    options,
-    key: permissionKey = '__read',
-  }: ReduceByPermissionsArgs<T, P>) => {
-    const args = ids ? ([filters, ...ids] as const) : ([filters] as const);
-    const rawReads = this._withoutTimestamps(...args);
-    const isLimited = !!options?.limit && options.limit > rawReads.length;
-
-    const slicedReads = rawReads.slice(0, options?.limit);
-    type Out = Read<T, P>[];
-    const projection = (options?.projection ?? []) as P;
-
-    /**
-     * Check if some records are resticted by permissions
-     */
-    let isRestricted = false;
-
-    /**
-     * Grant all permissions for superAdmin
-     */
-    if (actor === true) {
-      const rawReadsWithProjection = slicedReads.map(data => {
-        return withProjection(data, ...projection);
-      }) as unknown as Out;
-      return { payload: rawReadsWithProjection, isRestricted, isLimited };
-    }
-
-    if (slicedReads.length === 0) {
-      const rawReadsWithProjection = slicedReads.map(data => {
-        return withProjection(data, ...projection);
-      }) as unknown as Out;
-      return { payload: rawReadsWithProjection, isRestricted, isLimited };
-    }
-
-    const actorPermissions = actor.permissions;
-    const rawPermissions = this._withoutTimestampsPermissions(
-      ...slicedReads,
-    );
-
-    /**
-     * Decompose the raw Reads for better permission checking
-     */
-    const flattenReads = slicedReads.map(decompose);
-
-    /**
-     * Filter keys with projection
-     */
-    const flattenReadsWithProjection = flattenReads.map(data => {
-      return withProjection2(data, ...projection);
-    });
-
-    /**
-     * Decompose the raw Permission for better permission checking
-     */
-    const flattenPermissions = rawPermissions.map(
-      decompose,
-    ) as unknown as WithId<Record<string, PermissionsArray>>[];
-
-    const payload: Out = [];
-
-    flattenPermissions.forEach(({ _id, ...perm }, index) => {
-      const permissionsEntries = Object.entries(perm);
-
-      // #region Check if the data has no permissions restrictions
-      const permissionsValues = permissionsEntries.map(
-        ([, value]) => value,
-      );
-
-      const check1 = permissionsValues.every(
-        (val: any) => val.length === 0,
-      );
-      if (check1) {
-        const payload1 = flattenReadsWithProjection[index] as Out[number];
-        payload.push(payload1);
-      }
-      // #endregion
-      else {
-        const restrictedKeys: string[] = [];
-
-        // #region Check if actor has all required permissions
-        permissionsEntries.forEach(([key1, value1]) => {
-          const __read = value1[permissionKey];
-          const check11 = __read.every(_read =>
-            actorPermissions.includes(_read),
-          );
-          if (!check11) {
-            restrictedKeys.push(key1);
-            if (isRestricted === false) isRestricted = true;
-          }
-        });
-        const check2 = restrictedKeys.length === 0;
-        if (check2) {
-          payload.push(rawReads[index] as any);
-        }
-        // #endregion
-        else {
-          const entriesData = Object.entries(
-            flattenReadsWithProjection[index],
-          );
-          // #region Update the read without the restricted keys
-          const newRead = entriesData.filter(
-            ([key]) => !restrictedKeys.includes(key),
-          );
-
-          const updatedRead = recompose(Object.fromEntries(newRead));
-          payload.push({
-            _id,
-            ...updatedRead,
-          } as any);
-          // #endregion
-        }
-      }
-    });
-
-    return { payload, isRestricted, isLimited };
-  };
-
-  private _canReadExtended = (reads: any[]) => {
+  private _canPerfomExtended = (reads: any[]) => {
     return reads.some(read => {
       const keys = Object.keys(read);
       const len = keys.length;
       return len > 1;
     });
   };
-
   // #endregion
 
   readAll: ReadAll<T> = async (actorID, options) => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
     if (actor !== true) {
       const out = new ReturnData({
         status: 620,
@@ -752,7 +800,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   };
 
   readMany: ReadMany<T> = async ({ actorID, filters, options }) => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
       return new ReturnData({
@@ -766,11 +814,12 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(521, 'Empty');
     }
 
-    const { payload, isRestricted, isLimited } = this.reduceByPermissions({
-      actor,
-      filters,
-      options,
-    });
+    const { payload, isRestricted, isLimited, notPermitteds } =
+      this.reduceByPermissions({
+        actor,
+        filters,
+        options,
+      });
 
     if (!payload.length) {
       return new ReturnData({
@@ -779,13 +828,14 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       });
     }
 
-    const canRead = this._canReadExtended(payload);
+    const canRead = this._canPerfomExtended(payload);
     if (!canRead) {
       return new ReturnData({
         status: 621,
         // notPermitteds: ['ALL'],
         messages: [`Actor ${actorID} cannot read the data`],
         payload,
+        notPermitteds,
       });
     }
 
@@ -844,7 +894,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     filters,
     options,
   }) => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
       return this.generateNoActor(622, actorID);
@@ -854,12 +904,13 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       CollectionDB.generateServerError(522, 'Empty');
     }
 
-    const { payload, isRestricted, isLimited } = this.reduceByPermissions({
-      actor,
-      filters,
-      ids,
-      options,
-    });
+    const { payload, isRestricted, isLimited, notPermitteds } =
+      this.reduceByPermissions({
+        actor,
+        filters,
+        ids,
+        options,
+      });
 
     if (!payload.length) {
       return new ReturnData({
@@ -868,7 +919,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       });
     }
 
-    const canRead = this._canReadExtended(payload);
+    const canRead = this._canPerfomExtended(payload);
     if (!canRead) {
       return new ReturnData({
         status: 622,
@@ -880,8 +931,9 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
     if (isRestricted) {
       return new ReturnData({
-        status: 322,
+        status: 622,
         payload,
+        notPermitteds,
         messages: ['Some data keys are restricted'],
       });
     }
@@ -901,7 +953,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   };
 
   readOne: ReadOne<T> = async ({ actorID, filters, options }) => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
       return new ReturnData({
@@ -915,7 +967,11 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(523, 'Empty');
     }
 
-    const { payload: payloads, isRestricted } = this.reduceByPermissions({
+    const {
+      payload: payloads,
+      isRestricted,
+      notPermitteds,
+    } = this.reduceByPermissions({
       actor,
       filters,
       options,
@@ -926,7 +982,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(523, 'Not Found');
     }
 
-    const canRead = this._canReadExtended(payloads);
+    const canRead = this._canPerfomExtended(payloads);
     if (!canRead) {
       return new ReturnData({
         status: 623,
@@ -938,8 +994,9 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
     if (isRestricted) {
       return new ReturnData({
-        status: 323,
+        status: 623,
         payload,
+        notPermitteds,
         messages: ['Some data keys are restricted'],
       });
     }
@@ -953,7 +1010,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     filters,
     options,
   }) => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
       return new ReturnData({
@@ -967,7 +1024,11 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(523, 'Empty');
     }
 
-    const { payload: payloads, isRestricted } = this.reduceByPermissions({
+    const {
+      payload: payloads,
+      isRestricted,
+      notPermitteds,
+    } = this.reduceByPermissions({
       actor,
       filters,
       options,
@@ -979,15 +1040,16 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
       return CollectionDB.generateServerError(524, 'Not Found');
     }
 
-    const canRead = this._canReadExtended(payloads);
+    const canRead = this._canPerfomExtended(payloads);
     if (!canRead) {
       return this.generateActorCannotPerform({ status: 624, actorID });
     }
 
     if (isRestricted) {
       return new ReturnData({
-        status: 324,
+        status: 624,
         payload,
+        notPermitteds,
         messages: ['Some data keys are restricted'],
       });
     }
@@ -996,7 +1058,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   };
 
   countAll: CountAll = async actorID => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
 
     if (actor !== true) {
       return CollectionDB.generateServerError(
@@ -1013,7 +1075,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   };
 
   count: Count<T> = async ({ actorID, filters, options }) => {
-    const actor = this._canRead(actorID);
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
       return this.generateNoActor(626, actorID);
@@ -1045,61 +1107,184 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
   // #endregion
 
-  updateAll: UpdateAll<T> = async ({ actorID, data, options }) => {
-    const actor = this._canRead(actorID);
+  // #region Update
+  // #region Private
+  private __updateAllWithOne = (update: WT<T>, ...ids: string[]) => {
+    const updates = ids.map(_id => ({ ...update, _id }));
+
+    return this.__update(...updates);
+  };
+
+  private __update = (...updates: WithId<WT<T>>[]) => {
+    let idsNotFound = 0;
+    const payload: string[] = [];
+
+    const __db = produce(this._collection, draft => {
+      updates.forEach(({ _id, ...update }) => {
+        const fIndex = draft.findIndex(data => data._id === _id);
+        if (fIndex !== -1) {
+          draft[fIndex] = castDraft(
+            merge(draft[fIndex], update) as WithEntity<T>,
+          );
+          payload.push(_id);
+        } else {
+          idsNotFound++;
+        }
+      });
+    });
+
+    this._collection.length = 0;
+    this._collection.push(...__db);
+
+    return { idsNotFound, payload };
+  };
+
+  static generateIdsNotFound(
+    status: RedirectStatus,
+    payload: string[],
+    ids = 0,
+  ) {
+    return new ReturnData({
+      status,
+      payload,
+      messages: [`Some ids (${ids}) are not found`],
+    });
+  }
+  // #endregion
+
+  updateAllWithOne: UpdateAllWithOne<T> = async ({
+    actorID,
+    update,
+    options,
+  }) => {
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(627, actorID);
+      return this.generateNoActor(630, actorID);
+    }
+
+    if (actor !== true) {
+      return new ReturnData({
+        status: 630,
+        messages: ['Only superAdmin can UpdateAll'],
+      });
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(527, 'Empty');
+      return CollectionDB.generateServerError(530, 'Empty');
     }
-
-    const helper: WithEntity<T>[] = [];
-    const db = merge(helper, this._collection) as WithEntity<T>[];
 
     const limit = options?.limit;
-    const inputs = db
-      .slice(0, limit)
-      .map(_data => merge(_data, data)) as WithEntity<T>[];
+    const isLimited = limit && limit < this._collection.length;
 
-    if (limit && limit <= db.length) {
-      this._collection.length = 0;
-      this._collection.push(...inputs);
+    const ids = this._collection.map(({ _id }) => _id);
+
+    const { payload, idsNotFound } = this.__updateAllWithOne(
+      update,
+      ...ids,
+    );
+
+    const someAreNotFound = idsNotFound > 0;
+
+    if (someAreNotFound) {
       return new ReturnData({
-        status: 127,
-        payload: inputs.map(input => input._id),
-        messages: ['Limit Reached'],
+        status: 330,
+        payload,
+        messages: [`Some ids (${idsNotFound}) are not found`],
       });
     }
+
+    if (isLimited) {
+      return new ReturnData({
+        status: 130,
+        payload,
+        messages: ['Limit not Reached'],
+      });
+    }
+
     return new ReturnData({
-      status: 227,
-      payload: inputs.map(input => input._id),
+      status: 230,
+      payload,
     });
   };
 
-  // #region Update
-  updateMany: UpdateMany<T> = async ({
-    actorID,
-    filters,
-    data,
-    options,
-  }) => {
-    const actor = this._canRead(actorID);
+  updateAll: UpdateAll<T> = async ({ actorID, datas }) => {
+    const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(628, actorID);
+      return this.generateNoActor(631, actorID);
+    }
+
+    if (actor !== true) {
+      return new ReturnData({
+        status: 631,
+        messages: ['Only superAdmin can update all'],
+      });
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(528, 'Empty');
+      return CollectionDB.generateServerError(531, 'Empty');
+    }
+
+    const updates = datas
+      .map(
+        (data, index) =>
+          ({
+            ...data,
+            _id: this._collection[index]?._id,
+          }) as WithId<WT<T>>,
+      )
+      .filter(data => !!data);
+
+    const isLimited = datas.length < this._collection.length;
+
+    const { payload, idsNotFound } = this.__update(...updates);
+
+    const someAreNotFound = idsNotFound > 0;
+
+    if (someAreNotFound) {
+      return new ReturnData({
+        status: 331,
+        payload,
+        messages: [`Some ${idsNotFound} are not found`],
+      });
+    }
+
+    if (isLimited) {
+      return new ReturnData({
+        status: 131,
+        payload,
+        messages: ['Limit not Reached'],
+      });
+    }
+
+    return new ReturnData({
+      status: 231,
+      payload,
+    });
+  };
+
+  updateManyWithOne: UpdateManyWithOne<T> = async ({
+    actorID,
+    filters,
+    update,
+    options,
+  }) => {
+    const actor = this._canPerform(actorID);
+
+    if (actor === false) {
+      return this.generateNoActor(632, actorID);
+    }
+
+    if (!this._collection.length) {
+      return CollectionDB.generateServerError(532, 'Empty');
     }
 
     const {
       payload: rawPayload,
       isLimited,
-      // isRestricted,
+      isRestricted,
+      notPermitteds,
     } = this.reduceByPermissions({
       actor,
       filters,
@@ -1109,36 +1294,95 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
 
     if (!rawPayload.length) {
       return new ReturnData({
-        status: 328,
+        status: 332,
         messages: ['Filters kill data'],
       });
     }
 
-    const payload = rawPayload.map(({ _id }) => _id);
+    const updates = rawPayload.map(data => {
+      const out = intersectObjects(data, { ...update, _id: data._id });
+      return out as WithId<WT<T>>;
+    });
 
-    this.__update(data, ...payload);
+    const { payload, idsNotFound } = this.__update(...updates);
+
+    // this.__updateAllWithOne(update);
+
+    // const payload = rawPayload.map(({ _id }) => _id);
+    // this.__updateAllWithOne(update, ...payload);
+
+    const someIdsAreNotFound = idsNotFound > 0;
+    if (someIdsAreNotFound) {
+      return CollectionDB.generateIdsNotFound(332, payload, idsNotFound);
+    }
+
+    if (isRestricted) {
+      return new ReturnData({
+        status: 632,
+        payload,
+        notPermitteds,
+        messages: ['Some keys are restricted'],
+      });
+    }
+
     if (isLimited) {
       return new ReturnData({
-        status: 122,
+        status: 132,
         payload,
         messages: ['Limit Reached'],
       });
     }
+
     return new ReturnData({
-      status: 222,
+      status: 232,
       payload,
     });
   };
 
-  updateManyByIds: UpdateManyByIds<T> = async ({
+  updateMany: UpdateMany<T> = async () => {
+    throw undefined;
+  };
+
+  updateManyByIdsWithOne: UpdateManyByIdsWithOne<T> = async ({
     ids,
     filters,
-    data,
+    update,
     options,
+    actorID,
   }) => {
+    const actor = this._canPerform(actorID);
+
+    if (actor === false) {
+      return this.generateNoActor(631, actorID);
+    }
     if (!this._collection.length) {
       return new ReturnData({ status: 523, messages: ['Empty'] });
     }
+
+    const {
+      payload: rawPayload,
+      isLimited,
+      // isRestricted,
+    } = this.reduceByPermissions({
+      actor,
+      ids,
+      filters,
+      options,
+      key: '__update',
+    });
+
+    if (!rawPayload.length) {
+      return new ReturnData({
+        status: 333,
+        messages: ['Filters kill data'],
+      });
+    }
+
+    const updates = rawPayload.map(data => {
+      const out = intersectObjects(data, { ...update, _id: data._id });
+      return out as WithId<WT<T>>;
+    });
+
     const db = [...this._collection];
     const limit = options?.limit;
 
@@ -1155,7 +1399,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     if (!filters) {
       const payload = inputs1.slice(0, limit).map(input => input._id);
 
-      this.__update(data, ...payload);
+      this.__updateAllWithOne(update, ...payload);
       this._collection; //?
       if (limit && limit < inputs1.length) {
         return new ReturnData({
@@ -1174,7 +1418,7 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     inputs2.length; //?
     const payload = inputs2.slice(0, limit).map(input => input._id);
 
-    this.__update(data, ...payload);
+    this.__updateAllWithOne(update, ...payload);
 
     if (!inputs2.length) {
       return new ReturnData({
@@ -1204,6 +1448,10 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
     });
   };
 
+  updateManyByIds: UpdateManyByIds<T> = async () => {
+    throw undefined;
+  };
+
   updateOne: UpdateOne<T> = async () => {
     throw undefined;
   };
@@ -1212,15 +1460,30 @@ export class CollectionDB<T extends Ru> /* implements Repository<T> */ {
   };
   // #endregion
 
+  setAllWithOne: SetAllWithOne<T> = async () => {
+    throw undefined;
+  };
+
   setAll: SetAll<T> = async () => {
     throw undefined;
   };
+
+  setManyWithOne: SetManyWithOne<T> = async () => {
+    throw undefined;
+  };
+
   setMany: SetMany<T> = async () => {
     throw undefined;
   };
+
+  setManyByIdsWithOne: SetManyByIdsWithOne<T> = async () => {
+    throw undefined;
+  };
+
   setManyByIds: SetManyByIds<T> = async () => {
     throw undefined;
   };
+
   setOne: SetOne<T> = async () => {
     throw undefined;
   };

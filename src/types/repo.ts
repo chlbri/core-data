@@ -3,6 +3,7 @@ import type {
   KeysMatching,
   Recompose,
 } from '@bemedev/decompose';
+import type { RD, Status } from '@bemedev/return-data/lib/types';
 import type { DSO } from './dso';
 import type {
   Entity,
@@ -11,7 +12,6 @@ import type {
   WithoutTimeStamps,
 } from './entities';
 import type { NOmit } from './helpers';
-import type { RD, Status } from '@bemedev/return-data/lib/types';
 
 export type ErrorHandler = (error?: any) => never;
 
@@ -158,25 +158,46 @@ export type Count<T extends Ru> = <
 
 // #region Update
 
+export type UpdateAllWithOne<T extends Ru> = (args: {
+  actorID: string;
+  update: WT<T>;
+  options?: NOmit<QueryOptions, 'projection'>;
+}) => PromiseRD<string[]>;
+
 export type UpdateAll<T extends Ru> = (args: {
   actorID: string;
-  data: WT<T>;
+  datas: WT<T>[];
+  options?: NOmit<QueryOptions, 'projection' | 'limit'>;
+}) => PromiseRD<string[]>;
+
+export type UpdateManyWithOne<T extends Ru> = (args: {
+  actorID: string;
+  filters: DSO<T>;
+  update: WT<T>;
   options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
 
 export type UpdateMany<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
-  data: WT<T>;
+  data: WT<T>[];
+  options?: NOmit<QueryOptions, 'projection' | 'limit'>;
+}) => PromiseRD<string[]>;
+
+export type UpdateManyByIdsWithOne<T extends Ru> = (args: {
+  actorID: string;
+  ids: string[];
+  update: WT<T>;
+  filters?: DSO<T>;
   options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
 
 export type UpdateManyByIds<T extends Ru> = (args: {
   actorID: string;
   ids: string[];
-  data: WT<T>;
+  data: WT<T>[];
   filters?: DSO<T>;
-  options?: NOmit<QueryOptions, 'projection'>;
+  options?: NOmit<QueryOptions, 'projection' | 'limit'>;
 }) => PromiseRD<string[]>;
 
 export type UpdateOne<T extends Ru> = (args: {
@@ -198,8 +219,21 @@ export type UpdateOneById<T extends Ru> = (args: {
 
 // #region Set
 
+export type SetAllWithOne<T extends Ru> = (args: {
+  actorID: string;
+  data: WithoutTimeStamps<T>;
+  options?: NOmit<QueryOptions, 'projection'>;
+}) => PromiseRD<string[]>;
+
 export type SetAll<T extends Ru> = (args: {
   actorID: string;
+  data: WithoutTimeStamps<T>[];
+  options?: NOmit<QueryOptions, 'projection' | 'limit'>;
+}) => PromiseRD<string[]>;
+
+export type SetManyWithOne<T extends Ru> = (args: {
+  actorID: string;
+  filters: DSO<T>;
   data: WithoutTimeStamps<T>;
   options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
@@ -207,6 +241,14 @@ export type SetAll<T extends Ru> = (args: {
 export type SetMany<T extends Ru> = (args: {
   actorID: string;
   filters: DSO<T>;
+  data: WithoutTimeStamps<T>[];
+  options?: NOmit<QueryOptions, 'projection' | 'limit'>;
+}) => PromiseRD<string[]>;
+
+export type SetManyByIdsWithOne<T extends Ru> = (args: {
+  actorID: string;
+  ids: string[];
+  filters?: DSO<T>;
   data: WithoutTimeStamps<T>;
   options?: NOmit<QueryOptions, 'projection'>;
 }) => PromiseRD<string[]>;
@@ -214,9 +256,9 @@ export type SetMany<T extends Ru> = (args: {
 export type SetManyByIds<T extends Ru> = (args: {
   actorID: string;
   ids: string[];
+  data: WithoutTimeStamps<T>[];
   filters?: DSO<T>;
-  data: WithoutTimeStamps<T>;
-  options?: NOmit<QueryOptions, 'projection'>;
+  options?: NOmit<QueryOptions, 'projection' | 'limit'>;
 }) => PromiseRD<string[]>;
 
 export type SetOne<T extends Ru> = (args: {
@@ -347,11 +389,17 @@ export interface Repository<T extends Ru> {
   readOneById: ReadOneById<T>;
   countAll: CountAll;
   count: Count<T>;
+  updateAllWithOne: UpdateAllWithOne<T>;
+  updateManyWithOne: UpdateManyWithOne<T>;
+  updateManyByIdsWithOne: UpdateManyByIdsWithOne<T>;
   updateAll: UpdateAll<T>;
   updateMany: UpdateMany<T>;
   updateManyByIds: UpdateManyByIds<T>;
   updateOne: UpdateOne<T>;
   updateOneById: UpdateOneById<T>;
+  setAllWithOne: SetAllWithOne<T>;
+  setManyWithOne: SetManyWithOne<T>;
+  setManyByIdsWithOne: SetManyByIdsWithOne<T>;
   setAll: SetAll<T>;
   setMany: SetMany<T>;
   setManyByIds: SetManyByIds<T>;

@@ -1,6 +1,6 @@
 import { decompose, recompose, type Ru } from '@bemedev/decompose';
 import { dequal } from 'dequal';
-import { z } from 'zod';
+import { z, type Primitive } from 'zod';
 import { isNotClause } from '../functions';
 import type {
   DataSearchOperations,
@@ -225,13 +225,68 @@ export function zodDecomposeKeys<
   return _zodDecomposeKeys(shape, addObjectKey) as ZodMatching<Z, B>[];
 }
 
-function cleanProjection(...datas: string[]) {
+export function cleanProjection(...datas: string[]) {
   const out: string[] = [];
   datas.forEach(data => {
     const checkString = data.split('.')[0];
     const check = out.includes(checkString);
     if (!check) out.push(data);
   });
+  return out;
+}
+
+const filterArrays = <T extends any[][]>(...arrays: T) => {
+  const out = arrays.reduce((acc, curr) => {
+    acc = curr.filter(value => acc.includes(value));
+    return acc;
+  });
+
+  return out;
+};
+
+export function isPrimitive(value?: any): value is Primitive {
+  const check1 =
+    value === undefined ||
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'bigint' ||
+    typeof value === 'boolean' ||
+    typeof value === 'number' ||
+    typeof value === 'symbol';
+
+  return check1;
+}
+
+export function intersectObjects<T extends Ru[]>(...objects: T) {
+  const len = objects.length;
+  if (len === 0) return undefined;
+  if (len === 1) return objects[0];
+
+  const out: any = {};
+  const keys = objects.map(Object.keys);
+  const filterKeys = filterArrays(...keys);
+
+  objects.forEach(obj => {
+    const entries1 = Object.entries(obj);
+    entries1.forEach(([key, value]) => {
+      const _isPrimitive = isPrimitive(value);
+
+      if (_isPrimitive) {
+        const check1 = filterKeys.includes(key);
+        if (check1) out[key] = value;
+      } else {
+        const recursives = objects.map(obj => {
+          const check = key in obj;
+          if (check) return obj[key];
+          return undefined;
+        }) as Ru[];
+
+        const check = recursives.some(data => data === undefined);
+        if (!check) out[key] = intersectObjects(...recursives);
+      }
+    });
+  });
+
   return out;
 }
 
