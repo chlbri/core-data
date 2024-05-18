@@ -12,7 +12,7 @@ export declare function intersectObjects<T extends Ru[]>(...objects: T): any;
  * @param data the data to reduce
  * @param projection The shape that the data will take
  */
-export declare function withProjection<T extends Ru, P extends Projection<T> = []>(data: T, ...projection: P): import("@bemedev/decompose").Recompose<Omit<import("@bemedev/decompose").Decompose<T>, P[number] | `${P[number]}.${string}`>>;
+export declare function withProjection<T extends Ru, P extends Projection<T> = []>(data: T, ...projection: P): import("@bemedev/decompose").Recompose<Pick<import("@bemedev/decompose").Decompose<T>, P[number] | `${P[number]}.${string}`>>;
 /**
  * Same as {@link withProjection}, but here the data is already flatten
  * @param data Data is already flatten

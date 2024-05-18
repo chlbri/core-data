@@ -4,13 +4,18 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+dependencies:
+  pnpm:
+    specifier: ^9.1.1
+    version: 9.1.1
+
 devDependencies:
   '@bemedev/decompose':
     specifier: ^0.7.1
     version: 0.7.1
   '@bemedev/return-data':
-    specifier: ^0.3.1
-    version: 0.3.1(zod@3.23.8)
+    specifier: ^0.3.2
+    version: 0.3.2(zod@3.23.8)
   '@bemedev/vitest-alias':
     specifier: ^0.0.2
     version: 0.0.2(vitest@1.6.0)
@@ -171,11 +176,11 @@ packages:
       ts-deepmerge: 7.0.0
     dev: true
 
-  /@bemedev/return-data@0.3.1(zod@3.23.8):
-    resolution: {integrity: sha512-LsPhmKwuHbmMa4p34YpuagjH7GT9pWa5njiWCoBm9wayOzkhp5j3a9mM+MAdmEzv9T1V9yjgz/mcDSmPpFpDpw==}
+  /@bemedev/return-data@0.3.2(zod@3.23.8):
+    resolution: {integrity: sha512-rZ6x4EDqPB6JkrxwoZnuzPSEL9koTiqpZ0g8WvCCvbclxds3EuHoDEneck2DL+iQ7hVBlb4Y14d1OyF2CBmXgg==}
     engines: {node: '>=20'}
     peerDependencies:
-      zod: 3.23.6
+      zod: ^3.23.6
     dependencies:
       zod: 3.23.8
     dev: true
@@ -2452,6 +2457,12 @@ packages:
     dependencies:
       irregular-plurals: 3.5.0
     dev: true
+
+  /pnpm@9.1.1:
+    resolution: {integrity: sha512-FOkVdZwR936sB/q6TQGcGT7IY3Ip5i7Jnu+3zzw7dcZER4grfEhRQkUe46a0CAWc37e3+gNBuXXxLQ92KccRlQ==}
+    engines: {node: '>=18.12'}
+    hasBin: true
+    dev: false
 
   /postcss@8.4.38:
     resolution: {integrity: sha512-Wglpdk03BSfXkHoQa3b/oulrotAkwrlLDRSOb9D0bN86FdRyE9lppSp33aHNPgBa0JKCoB+drFLZkQoRRYae5A==}

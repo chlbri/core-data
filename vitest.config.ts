@@ -15,6 +15,8 @@ export default defineConfig({
       all: true,
       exclude: ['**/types.ts', '**/index.ts', '**/*.test-d.ts'],
       provider: 'v8',
+      skipFull: true,
+      
     },
   },
 });

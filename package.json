@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@bemedev/decompose": "^0.7.1",
-    "@bemedev/return-data": "^0.3.1",
+    "@bemedev/return-data": "^0.3.2",
     "@bemedev/vitest-alias": "^0.0.2",
     "@bemedev/vitest-extended": "^0.3.3",
     "@bemedev/zod-extended": "^0.1.2",
@@ -78,5 +78,8 @@
     "nanoid": "^5.0.7",
     "ts-deepmerge": "^7.0.0",
     "zod": "^3.23.6"
+  },
+  "dependencies": {
+    "pnpm": "^9.1.1"
   }
 }

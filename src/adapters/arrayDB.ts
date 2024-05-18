@@ -234,7 +234,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     return new ReturnData({ status, messages });
   };
 
-  static generateEmptyDBError = (status: ServerErrorStatus) => {
+  private generateEmptyDBError = (status: ServerErrorStatus) => {
     const messages = [`This collection (${this.name}) is empty`];
     return new ReturnData({ status, messages });
   };
@@ -264,9 +264,9 @@ export class CollectionDB<T extends z.AnyZodObject>
 
   private _withoutTimestamps = (
     filters?: DSO<ZodWT<T>>,
-    ...ids: string[]
+    ids?: string[],
   ) => {
-    const collection = this._withoutTimestampsByIds(...ids);
+    const collection = this._withoutTimestampsByIds(ids);
 
     if (!filters) {
       return collection;
@@ -277,9 +277,9 @@ export class CollectionDB<T extends z.AnyZodObject>
     return out;
   };
 
-  private _withoutTimestampsByIds = (...ids: string[]) => {
+  private _withoutTimestampsByIds = (ids?: string[]) => {
     const mapper = CollectionDB.mapperWithoutTimestamps<z.infer<T>>();
-    const check = !ids.length;
+    const check = !ids;
 
     if (check) {
       const out = this._collection.map(mapper);
@@ -287,7 +287,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     }
 
     const _filters = ({ _id }: ZodWithEntity<T>) => {
-      ids.includes(_id);
+      return ids.includes(_id);
     };
     const out = this._collection.filter(_filters).map(mapper);
 
@@ -318,14 +318,14 @@ export class CollectionDB<T extends z.AnyZodObject>
     filters?: DSO<ZodWithoutT<T>>,
     options?: QueryOptions<P>,
   ) {
-    const args = ids ? ([filters, ...ids] as const) : ([filters] as const);
-    const rawReads = this._withoutTimestamps(...args);
+    const rawReads = this._withoutTimestamps(filters, ids);
     const isLimited = !!options?.limit && options.limit > rawReads.length;
 
     const slicedReads = rawReads.slice(0, options?.limit);
     const projection = (options?.projection ?? []) as P;
 
     type Out = Read<z.infer<T>, P>[];
+    //@ts-expect-error okkk
     const rawReadsWithProjection = slicedReads.map(data =>
       //@ts-expect-error okkk
       withProjection<any, string[]>(data, ...projection),
@@ -778,7 +778,6 @@ export class CollectionDB<T extends z.AnyZodObject>
     const isSuperAdmin = actor.superAdmin;
     if (isSuperAdmin) return true;
     return actor;
-    // const { permissions, reads } = this.getDataAndPermissions(filters);
   };
 
   private _canPerfomExtended = (reads: any[]) => {
@@ -801,7 +800,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(520, 'DB is empty');
+      return this.generateEmptyDBError(520);
     }
     const rawReads = this._withoutTimestamps();
     const reads = rawReads.map(read => {
@@ -835,15 +834,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 621,
-        // notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return CollectionDB.generateNoActorError(621, actorID);
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(521, 'Empty');
+      return this.generateEmptyDBError(521);
     }
 
     const { payload, isRestricted, isLimited, notPermitteds } =
@@ -856,7 +851,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     if (!payload.length) {
       return new ReturnData({
         status: 321,
-        messages: ['Empty'],
+        messages: ['Query return Empty'],
       });
     }
 
@@ -893,15 +888,19 @@ export class CollectionDB<T extends z.AnyZodObject>
     });
   };
 
-  private generateNoActor = (
+  static generateNoActorError = (
     status: PermissionErrorStatus,
-    actorID?: string,
+    actorID: string,
   ) =>
     new ReturnData({
       status,
-      messages: [
-        `This actor ${actorID ? `${actorID} :` : ':'} not exists`,
-      ],
+      messages: [`This actor (${actorID}) doesn't exists`],
+    });
+
+  static generateOnlyAdminError = (status: PermissionErrorStatus) =>
+    new ReturnData({
+      status,
+      messages: ['Only SuperAdmin can read all data'],
     });
 
   private generateActorCannotPerform = ({
@@ -920,6 +919,21 @@ export class CollectionDB<T extends z.AnyZodObject>
       ],
     });
 
+  static generateRedirect(status: RedirectStatus, ...messages: string[]) {
+    return new ReturnData({
+      status,
+      messages,
+    });
+  }
+
+  static generateRedirectEmpty(status: RedirectStatus) {
+    return CollectionDB.generateRedirect(status, 'Query return Empty');
+  }
+
+  static generateNotFound(status: RedirectStatus) {
+    return CollectionDB.generateRedirect(status, 'Not found');
+  }
+
   readManyByIds: ReadManyByIds<z.infer<T>> = async ({
     actorID,
     ids,
@@ -929,11 +943,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(622, actorID);
+      return CollectionDB.generateNoActorError(622, actorID);
     }
 
     if (!this._collection.length) {
-      CollectionDB.generateServerError(522, 'Empty');
+      return this.generateEmptyDBError(522);
     }
 
     const { payload, isRestricted, isLimited, notPermitteds } =
@@ -945,10 +959,7 @@ export class CollectionDB<T extends z.AnyZodObject>
       });
 
     if (!payload.length) {
-      return new ReturnData({
-        status: 322,
-        messages: ['Empty'],
-      });
+      return CollectionDB.generateRedirectEmpty(322);
     }
 
     const canRead = this._canPerfomExtended(payload);
@@ -988,15 +999,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 623,
-        // notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return CollectionDB.generateNoActorError(623, actorID);
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(523, 'Empty');
+      return this.generateEmptyDBError(523);
     }
 
     const {
@@ -1009,16 +1016,16 @@ export class CollectionDB<T extends z.AnyZodObject>
       options,
     });
 
-    // @ts-expect-error ookk
     const payload = payloads[0];
     if (!payload) {
-      return CollectionDB.generateServerError(523, 'Not Found');
+      return CollectionDB.generateNotFound(323);
     }
 
     const canRead = this._canPerfomExtended(payloads);
     if (!canRead) {
       return new ReturnData({
         status: 623,
+        notPermitteds,
         // notPermitteds: ['ALL'],
         messages: [`Actor ${actorID} cannot read the data`],
         payload,
@@ -1046,15 +1053,11 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return new ReturnData({
-        status: 624,
-        // notPermitteds: ['ALL'],
-        messages: ['Actor not exists'],
-      });
+      return CollectionDB.generateNoActorError(624, actorID);
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(523, 'Empty');
+      return this.generateEmptyDBError(524);
     }
 
     const {
@@ -1070,7 +1073,7 @@ export class CollectionDB<T extends z.AnyZodObject>
 
     const payload = payloads[0];
     if (!payload) {
-      return CollectionDB.generateServerError(524, 'Not Found');
+      return CollectionDB.generateNotFound(324);
     }
 
     const canRead = this._canPerfomExtended(payloads);
@@ -1095,28 +1098,33 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor !== true) {
-      return CollectionDB.generateServerError(
-        525,
-        'Only superadmin can count all',
-      );
+      return CollectionDB.generateOnlyAdminError(625);
     }
-    const out = this._collection.length;
-    if (out <= 0) {
-      return CollectionDB.generateServerError(525, 'Empty');
+    const payload = this._collection.length;
+    if (payload <= 0) {
+      return this.generateEmptyDBError(525);
     }
 
-    return new ReturnData({ status: 225, payload: out });
+    return new ReturnData({ status: 225, payload });
   };
 
   count: Count<z.infer<T>> = async ({ actorID, filters, options }) => {
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(626, actorID);
+      return CollectionDB.generateNoActorError(626, actorID);
     }
 
     if (!this._collection.length) {
-      return CollectionDB.generateServerError(526, 'Empty');
+      return this.generateEmptyDBError(526);
+    }
+
+    if (!filters) {
+      const payload = this._collection.length;
+      return new ReturnData({
+        status: 226,
+        payload,
+      });
     }
 
     const payload = this._collection.filter(
@@ -1124,7 +1132,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     ).length;
 
     if (payload <= 0) {
-      return new ReturnData({ status: 326, messages: ['Empty'] });
+      return CollectionDB.generateRedirectEmpty(326);
     }
 
     const limit = options?.limit;
@@ -1195,7 +1203,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(630, actorID);
+      return CollectionDB.generateNoActorError(630, actorID);
     }
 
     if (actor !== true) {
@@ -1247,7 +1255,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(631, actorID);
+      return CollectionDB.generateNoActorError(631, actorID);
     }
 
     if (actor !== true) {
@@ -1308,7 +1316,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(632, actorID);
+      return CollectionDB.generateNoActorError(632, actorID);
     }
 
     if (!this._collection.length) {
@@ -1383,7 +1391,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(634, actorID);
+      return CollectionDB.generateNoActorError(634, actorID);
     }
 
     if (!this._collection.length) {
@@ -1455,7 +1463,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(633, actorID);
+      return CollectionDB.generateNoActorError(633, actorID);
     }
     if (!this._collection.length) {
       return new ReturnData({ status: 533, messages: ['Empty'] });
@@ -1526,7 +1534,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(635, actorID);
+      return CollectionDB.generateNoActorError(635, actorID);
     }
 
     if (!this._collection.length) {
@@ -1603,7 +1611,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(636, actorID);
+      return CollectionDB.generateNoActorError(636, actorID);
     }
 
     if (!this._collection.length) {
@@ -1680,7 +1688,7 @@ export class CollectionDB<T extends z.AnyZodObject>
     const actor = this._canPerform(actorID);
 
     if (actor === false) {
-      return this.generateNoActor(637, actorID);
+      return CollectionDB.generateNoActorError(637, actorID);
     }
     if (!this._collection.length) {
       return new ReturnData({ status: 537, messages: ['Empty'] });

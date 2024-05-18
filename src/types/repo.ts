@@ -54,11 +54,11 @@ export type WT<T> = WithoutTimeStamps<DeepPartial<T>>;
 export type ReduceByProjection<
   T extends Ru,
   P extends Projection<T>,
-> = Recompose<Omit<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
+> = Recompose<Pick<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
 
 export type Read<T extends Ru = Ru, P extends string[] = string[]> =
-  P extends Projection<WithId<WithoutTimeStamps<T>>>
-    ? WithId<ReduceByProjection<WithoutTimeStamps<T>, P>>
+  P extends Projection<T>
+    ? WithId<ReduceByProjection<T, P>>
     : WithId<WithoutTimeStamps<T>>;
 
 export type PromiseRDwithID<
@@ -140,7 +140,7 @@ export type Count<T extends Ru> = <
   P extends Projection<WithoutTimeStamps<T>>,
 >(args: {
   actorID: string;
-  filters: DSO<T>;
+  filters?: DSO<T>;
   options?: QueryOptions<P>;
 }) => PromiseRD<number>;
 

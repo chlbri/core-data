@@ -20,8 +20,8 @@ export type DeepPartial<T> = {
 export type WI<T> = WithId<DeepPartial<T>>;
 export type WO<T> = WithoutId<DeepPartial<T>>;
 export type WT<T> = WithoutTimeStamps<DeepPartial<T>>;
-export type ReduceByProjection<T extends Ru, P extends Projection<T>> = Recompose<Omit<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
-export type Read<T extends Ru = Ru, P extends string[] = string[]> = P extends Projection<WithId<WithoutTimeStamps<T>>> ? WithId<ReduceByProjection<WithoutTimeStamps<T>, P>> : WithId<WithoutTimeStamps<T>>;
+export type ReduceByProjection<T extends Ru, P extends Projection<T>> = Recompose<Pick<Decompose<T>, `${P[number]}.${string}` | P[number]>>;
+export type Read<T extends Ru = Ru, P extends string[] = string[]> = P extends Projection<T> ? WithId<ReduceByProjection<T, P>> : WithId<WithoutTimeStamps<T>>;
 export type PromiseRDwithID<T extends Ru = Ru, P extends string[] = string[]> = PromiseRD<Read<T, P>>;
 export type PromiseRDwithIdMany<T extends Ru = Ru, P extends string[] = string[]> = PromiseRD<Read<T, P>[]>;
 export type CreateMany<T extends Ru> = (args: {
@@ -72,7 +72,7 @@ export type ReadOneById<T extends Ru> = <P extends Projection<T>>(args: {
 export type CountAll = (actorID: string) => PromiseRD<number>;
 export type Count<T extends Ru> = <P extends Projection<WithoutTimeStamps<T>>>(args: {
     actorID: string;
-    filters: DSO<T>;
+    filters?: DSO<T>;
     options?: QueryOptions<P>;
 }) => PromiseRD<number>;
 export type UpdateAllWithOne<T extends Ru> = (args: {
