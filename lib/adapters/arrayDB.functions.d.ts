@@ -3,7 +3,7 @@ import { z, type Primitive } from 'zod';
 import type { DataSearchOperations, Projection } from '../types';
 export declare function inStreamSearchAdapter<T>(filter: DataSearchOperations<T>): (val: any) => boolean;
 export type ZodMatching<T extends z.ZodRawShape, B extends boolean = true, Key = keyof T> = Key extends string ? T[Key] extends z.AnyZodObject ? `${Key}.${ZodMatching<T[Key]['shape'], B>}` | (B extends true ? Key : never) : Key : never;
-export declare function zodDecomposeKeys<Z extends z.ZodRawShape, B extends boolean = true>(shape: Z, addObjectKey?: B): ZodMatching<Z, B, keyof Z>[];
+export declare function zodDecomposeKeys<Z extends z.ZodRawShape, B extends boolean = true>(shape: Z, addObjectKey?: B): ZodMatching<Z, B>[];
 export declare function cleanProjection(...datas: string[]): string[];
 export declare function isPrimitive(value?: any): value is Primitive;
 export declare function intersectObjects<T extends Ru[]>(...objects: T): any;
